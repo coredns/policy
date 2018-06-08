@@ -130,13 +130,13 @@ func (p *policyPlugin) connect() error {
 			opts = append(opts, pep.WithHotSpotBalancer(p.endpoints...))
 		}
 	}
-/* FIXME: KO
+	/* FIXME: KO
 	if p.trace != nil {
 		if t, ok := p.trace.(trace.Trace); ok {
 			opts = append(opts, pep.WithTracer(t.Tracer()))
 		}
 	}
-*/
+	*/
 
 	p.pdp = pep.NewClient(opts...)
 	return p.pdp.Connect("")

@@ -7,9 +7,9 @@ import (
 	"github.com/coredns/coredns/plugin/dnstap"
 	tapmsg "github.com/coredns/coredns/plugin/dnstap/msg"
 	"github.com/coredns/coredns/plugin/dnstap/taprw"
+	pb "github.com/coredns/policy/dnstap"
 	tap "github.com/dnstap/golang-dnstap"
 	"github.com/golang/protobuf/proto"
-	pb "github.com/coredns/policy/dnstap"
 	"github.com/miekg/dns"
 	context "golang.org/x/net/context"
 )

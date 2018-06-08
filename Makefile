@@ -6,7 +6,7 @@ GOFMTCHECK = test -z `gofmt -l -s -w *.go | tee /dev/stderr`
 GOTEST = go test -v
 COVER = $(GOTEST) -coverprofile=$(COVEROUT) -covermode=atomic -race
 
-all: get fmt test
+all: get fmt test build
 
 .PHONY: fmt
 fmt:
@@ -38,3 +38,6 @@ push:
 	@echo Pushing release $(VERSION) to master
 	git push --tags
 	git push
+
+build:
+	go build -o coredns ./coredns-main
