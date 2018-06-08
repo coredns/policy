@@ -20,6 +20,8 @@ import (
 	ot "github.com/opentracing/opentracing-go"
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
+
+	_ "github.com/infobloxopen/themis/pdp/selector"
 )
 
 type transport struct {
