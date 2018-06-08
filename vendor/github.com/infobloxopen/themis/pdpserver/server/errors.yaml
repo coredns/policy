@@ -1,0 +1,399 @@
+package: server
+
+import:
+  - fmt
+  - strings
+  - github.com/infobloxopen/themis/pdp-control
+
+errors:
+- id: externalError
+  fields:
+  - id: err
+    type: error
+  msg: "%s"
+  args:
+  - field: err
+
+- id: multiError
+  fields:
+  - id: errs
+    type: "[]error"
+  msg: "multiple errors: %s"
+  args:
+  - snippet:
+      result: msg
+      code: |
+        msgs := make([]string, len(e.errs))
+        for i, err := range e.errs {
+                msgs[i] = fmt.Sprintf("%q", err.Error())
+        }
+        msg := strings.Join(msgs, ", ")
+
+- id: tracingTypeError
+  fields:
+  - id: t
+    type: string
+  msg: "Unknown tracing type %q"
+  args:
+  - field: t
+
+- id: unknownEffectError
+  fields:
+  - id: effect
+    type: int
+  msg: "Unknown policy effect %d"
+  args:
+  - field: effect
+
+- id: unknownAttributeTypeError
+  fields:
+  - id: t
+    type: string
+  msg: "Unknown attribute type %q"
+  args:
+  - field: t
+
+- id: contextCreationError
+  fields:
+  - id: err
+    type: error
+  msg: "Failed to create request context: %s"
+  args:
+  - field: err
+
+- id: missingPolicyError
+  msg: "There is no any policy to process request"
+
+- id: policyCalculationError
+  fields:
+  - id: err
+    type: error
+  msg: "Failed to process request: %s"
+  args:
+  - field: err
+
+- id: effectTranslationError
+  fields:
+  - id: err
+    type: error
+  msg: "Failed to translate effect: %s"
+  args:
+  - field: err
+
+- id: effectCombiningError
+  fields:
+  - id: err
+    type: error
+  msg: "Failed to make failure effect: %s"
+  args:
+  - field: err
+
+- id: obligationTranslationError
+  fields:
+  - id: err
+    type: error
+  msg: "Failed to translate obligations: %s"
+  args:
+  - field: err
+
+- id: queueOverflowError
+  fields:
+  - id: idx
+    type: int32
+  msg: "Can't enqueue more than %d items"
+  args:
+  - field: idx
+
+- id: unknownUploadRequestError
+  fields:
+  - id: t
+    type: control.Item_DataType
+  msg: "Unknown upload request type: %d"
+  args:
+  - field: t
+
+- id: invalidFromTagError
+  fields:
+  - id: tag
+    type: string
+  - id: err
+    type: error
+  msg: "Can't treat %q as current tag: %s"
+  args:
+  - field: tag
+  - field: err
+
+- id: invalidToTagError
+  fields:
+  - id: tag
+    type: string
+  - id: err
+    type: error
+  msg: "Can't treat %q as new tag: %s"
+  args:
+  - field: tag
+  - field: err
+
+- id: invalidTagsError
+  fields:
+  - id: tag
+    type: string
+  msg: "Can't update from %q tag to no tag"
+  args:
+  - field: tag
+
+- id: tagCheckError
+  fields:
+  - id: err
+    type: error
+  msg: "Failed tag check: %s"
+  args:
+  - field: err
+
+- id: emptyUploadError
+  msg: "Empty upload"
+
+- id: unknownUploadError
+  fields:
+  - id: id
+    type: int32
+  msg: "Can't find upload request with id %d"
+  args:
+  - field: id
+
+- id: policyUploadParseError
+  fields:
+  - id: id
+    type: int32
+  - id: err
+    type: error
+  msg: "Failed to parse policy %d: %s"
+  args:
+  - field: id
+  - field: err
+
+- id: policyUploadStoreError
+  fields:
+  - id: id
+    type: int32
+  - id: err
+    type: error
+  msg: "Failed to store parsed policy %d: %s"
+  args:
+  - field: id
+  - field: err
+
+- id: contentUploadParseError
+  fields:
+  - id: id
+    type: int32
+  - id: err
+    type: error
+  msg: "Failed to parse content %d: %s"
+  args:
+  - field: id
+  - field: err
+
+- id: contentUploadStoreError
+  fields:
+  - id: id
+    type: int32
+  - id: err
+    type: error
+  msg: "Failed to store parsed content %d: %s"
+  args:
+  - field: id
+  - field: err
+
+- id: missingPolicyStorageError
+  msg: "No any policy to update"
+
+- id: policyTransactionCreationError
+  fields:
+  - id: id
+    type: int32
+  - id: v
+    type: "*item"
+  - id: err
+    type: error
+  msg: "Can't create transaction for policy update %d from tag %q to %q: %s"
+  args:
+  - field: id
+  - expr: e.v.fromTag.String()
+  - expr: e.v.toTag.String()
+  - field: err
+
+- id: policyUpdateParseError
+  fields:
+  - id: id
+    type: int32
+  - id: v
+    type: "*item"
+  - id: err
+    type: error
+  msg: "Failed to parse update %d from tag %q to %q: %s"
+  args:
+  - field: id
+  - expr: e.v.fromTag.String()
+  - expr: e.v.toTag.String()
+  - field: err
+
+- id: policyUpdateApplicationError
+  fields:
+  - id: id
+    type: int32
+  - id: v
+    type: "*item"
+  - id: err
+    type: error
+  msg: "Failed to apply update %d from tag %q to %q: %s"
+  args:
+  - field: id
+  - expr: e.v.fromTag.String()
+  - expr: e.v.toTag.String()
+  - field: err
+
+- id: policyUpdateUploadStoreError
+  fields:
+  - id: id
+    type: int32
+  - id: v
+    type: "*item"
+  - id: err
+    type: error
+  msg: "Failed to store parsed policy update %d from tag %q to %q: %s"
+  args:
+  - field: id
+  - expr: e.v.fromTag.String()
+  - expr: e.v.toTag.String()
+  - field: err
+
+- id: policyTransactionCommitError
+  fields:
+  - id: id
+    type: int32
+  - id: v
+    type: "*item"
+  - id: err
+    type: error
+  msg: "Failed to commit transaction %d from tag %q to %q: %s"
+  args:
+  - field: id
+  - expr: e.v.fromTag.String()
+  - expr: e.v.toTag.String()
+  - field: err
+
+- id: missingPolicyDataApplyError
+  fields:
+  - id: id
+    type: int32
+  msg: "Request %d doesn't contain parsed policy or parsed policy update"
+  args:
+  - field: id
+
+- id: missingContentDataApplyError
+  fields:
+  - id: id
+    type: int32
+  - id: cid
+    type: string
+  msg: "Request %d doesn't contain parsed content %q or parsed content update"
+  args:
+  - field: id
+  - field: cid
+
+- id: contentTransactionCreationError
+  fields:
+  - id: id
+    type: int32
+  - id: v
+    type: "*item"
+  - id: err
+    type: error
+  msg: "Can't create transaction for content %q update %d from tag %q to %q: %s"
+  args:
+  - field: v.id
+  - field: id
+  - expr: e.v.fromTag.String()
+  - expr: e.v.toTag.String()
+  - field: err
+
+- id: contentUpdateParseError
+  fields:
+  - id: id
+    type: int32
+  - id: v
+    type: "*item"
+  - id: err
+    type: error
+  msg: "Failed to parse content %q update %d from tag %q to %q: %s"
+  args:
+  - field: v.id
+  - field: id
+  - expr: e.v.fromTag.String()
+  - expr: e.v.toTag.String()
+  - field: err
+
+- id: contentUpdateApplicationError
+  fields:
+  - id: id
+    type: int32
+  - id: v
+    type: "*item"
+  - id: err
+    type: error
+  msg: "Failed to apply content %q update %d from tag %q to %q: %s"
+  args:
+  - field: v.id
+  - field: id
+  - expr: e.v.fromTag.String()
+  - expr: e.v.toTag.String()
+  - field: err
+
+- id: contentUpdateUploadStoreError
+  fields:
+  - id: id
+    type: int32
+  - id: v
+    type: "*item"
+  - id: err
+    type: error
+  msg: "Failed to store parsed content %q update %d from tag %q to %q: %s"
+  args:
+  - field: v.id
+  - field: id
+  - expr: e.v.fromTag.String()
+  - expr: e.v.toTag.String()
+  - field: err
+
+- id: contentTransactionCommitError
+  fields:
+  - id: id
+    type: int32
+  - id: v
+    type: "*item"
+  - id: err
+    type: error
+  msg: "Failed to commit content %q transaction %d from tag %q to %q: %s"
+  args:
+  - field: v.id
+  - field: id
+  - expr: e.v.fromTag.String()
+  - expr: e.v.toTag.String()
+  - field: err
+
+- id: unknownUploadedRequestError
+  fields:
+  - id: id
+    type: int32
+  msg: "Can't find parsed policy or content with id %d"
+  args:
+  - field: id
+
+- id: unsupportedPolicyFromatError
+  fields:
+  - id: format
+    type: string
+  msg: "The %s policy format is unsupported. Must be YAML or JSON"
+  args:
+  - field: format

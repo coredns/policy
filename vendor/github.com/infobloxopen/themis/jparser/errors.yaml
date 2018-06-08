@@ -1,0 +1,292 @@
+package: jparser
+
+import:
+- encoding/json
+
+errors:
+- id: externalError
+  fields:
+  - id: err
+    type: error
+  msg: "%s"
+  args:
+  - field: err
+
+- id: rootObjectStartTokenError
+  fields:
+  - id: actual
+    type: json.Token
+  - id: expected
+    type: string
+  msg: "Expected root JSON object start %q but got token %T (%#v)"
+  args:
+  - field: expected
+  - field: actual
+  - field: actual
+
+- id: rootObjectStartDelimiterError
+  fields:
+  - id: actual
+    type: json.Delim
+  - id: expected
+    type: string
+  msg: "Expected root JSON object start %q but got delimiter %q"
+  args:
+  - field: expected
+  - field: actual
+
+- id: objectStartTokenError
+  fields:
+  - id: actual
+    type: json.Token
+  - id: expected
+    type: string
+  - id: desc
+    type: string
+  msg: "Expected %s JSON object start %q but got token %T (%#v)"
+  args:
+  - field: desc
+  - field: expected
+  - field: actual
+  - field: actual
+
+- id: objectStartDelimiterError
+  fields:
+  - id: actual
+    type: json.Delim
+  - id: expected
+    type: string
+  - id: desc
+    type: string
+  msg: "Expected %s JSON object start %q but got delimiter %q"
+  args:
+  - field: desc
+  - field: expected
+  - field: actual
+
+- id: objectEndDelimiterError
+  fields:
+  - id: actual
+    type: json.Delim
+  - id: expected
+    type: string
+  - id: desc
+    type: string
+  msg: "Expected %s JSON object end %q but got delimiter %q"
+  args:
+  - field: desc
+  - field: expected
+  - field: actual
+
+- id: objectTokenError
+  fields:
+  - id: actual
+    type: json.Token
+  - id: expected
+    type: string
+  - id: desc
+    type: string
+  msg: "Expected %s JSON object string key or end %q but got token %T (%#v)"
+  args:
+  - field: desc
+  - field: expected
+  - field: actual
+  - field: actual
+
+- id: rootArrayStartTokenError
+  fields:
+  - id: actual
+    type: json.Token
+  - id: expected
+    type: string
+  msg: "Expected root JSON array start %q but got token %T (%#v)"
+  args:
+  - field: expected
+  - field: actual
+  - field: actual
+
+- id: rootArrayStartDelimiterError
+  fields:
+  - id: actual
+    type: json.Delim
+  - id: expected
+    type: string
+  msg: "Expected root JSON array start %q but got delimiter %q"
+  args:
+  - field: expected
+  - field: actual
+
+- id: arrayStartTokenError
+  fields:
+  - id: actual
+    type: json.Token
+  - id: expected
+    type: string
+  - id: desc
+    type: string
+  msg: "Expected %s JSON array start %q but got token %T (%#v)"
+  args:
+  - field: desc
+  - field: expected
+  - field: actual
+  - field: actual
+
+- id: arrayStartDelimiterError
+  fields:
+  - id: actual
+    type: json.Delim
+  - id: expected
+    type: string
+  - id: desc
+    type: string
+  msg: "Expected %s JSON array start %q but got delimiter %q"
+  args:
+  - field: desc
+  - field: expected
+  - field: actual
+
+- id: arrayEndDelimiterError
+  fields:
+  - id: actual
+    type: json.Delim
+  - id: expected
+    type: string
+  - id: desc
+    type: string
+  msg: "Expected %s JSON array end %q but got delimiter %q"
+  args:
+  - field: desc
+  - field: expected
+  - field: actual
+
+- id: stringArrayTokenError
+  fields:
+  - id: actual
+    type: json.Token
+  - id: expected
+    type: string
+  - id: desc
+    type: string
+  msg: "Expected %s JSON array string value or end %q but got token %T (%#v)"
+  args:
+  - field: desc
+  - field: expected
+  - field: actual
+  - field: actual
+
+- id: objectArrayStartTokenError
+  fields:
+  - id: actual
+    type: json.Token
+  - id: firstExpected
+    type: string
+  - id: secondExpected
+    type: string
+  - id: desc
+    type: string
+  msg: "Expected %s JSON object or array start %q or %q but got token %T (%#v)"
+  args:
+  - field: desc
+  - field: firstExpected
+  - field: secondExpected
+  - field: actual
+  - field: actual
+
+- id: objectArrayStartDelimiterError
+  fields:
+  - id: actual
+    type: json.Delim
+  - id: firstExpected
+    type: string
+  - id: secondExpected
+    type: string
+  - id: desc
+    type: string
+  msg: "Expected %s JSON object or array start %q or %q but got delimiter %q"
+  args:
+  - field: desc
+  - field: firstExpected
+  - field: secondExpected
+  - field: actual
+
+- id: objectArrayTokenError
+  fields:
+  - id: actual
+    type: json.Token
+  - id: expected
+    type: string
+  - id: desc
+    type: string
+  msg: "Expected %s JSON array object or end %q but got token %T (%#v)"
+  args:
+  - field: desc
+  - field: expected
+  - field: actual
+  - field: actual
+
+- id: unexpectedObjectArrayDelimiterError
+  fields:
+  - id: delim
+    type: string
+  - id: desc
+    type: string
+  msg: "Unexpected delimiter %q for %s"
+  args:
+  - field: delim
+  - field: desc
+
+- id: unexpectedDelimiterError
+  fields:
+  - id: delim
+    type: string
+  - id: desc
+    type: string
+  msg: "Unexpected delimiter %q for %s"
+  args:
+  - field: delim
+  - field: desc
+
+- id: missingEOFError
+  fields:
+  - id: token
+    type: json.Token
+  msg: "Expected expected EOF after root object end but got %T (%#v)"
+  args:
+  - field: token
+  - field: token
+
+- id: booleanCastError
+  fields:
+  - id: token
+    type: json.Token
+  - id: desc
+    type: string
+  msg: "Expected boolean as %s but got %T (%#v)"
+  args:
+  - field: desc
+  - field: token
+  - field: token
+
+- id: stringCastError
+  fields:
+  - id: token
+    type: json.Token
+  - id: desc
+    type: string
+  msg: "Expected string as %s but got %T (%#v)"
+  args:
+  - field: desc
+  - field: token
+  - field: token
+
+- id: numberCastError
+  fields:
+  - id: token
+    type: json.Token
+  - id: desc
+    type: string
+  msg: "Expected number as %s but got %T (%#v)"
+  args:
+  - field: desc
+  - field: token
+  - field: token

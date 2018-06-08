@@ -6,7 +6,8 @@ GOFMTCHECK = test -z `gofmt -l -s -w *.go | tee /dev/stderr`
 GOTEST = go test -v
 COVER = $(GOTEST) -coverprofile=$(COVEROUT) -covermode=atomic -race
 
-all: get fmt test build
+# all: get fmt test build
+all: fmt test build
 
 .PHONY: fmt
 fmt:

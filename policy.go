@@ -18,6 +18,7 @@ import (
 
 	"github.com/coredns/coredns/plugin"
 	"github.com/coredns/coredns/plugin/pkg/nonwriter"
+	"github.com/coredns/coredns/plugin/pkg/trace"
 	"github.com/mholt/caddy"
 	"github.com/miekg/dns"
 	"golang.org/x/net/context"
@@ -76,10 +77,16 @@ type edns0Map struct {
 	end      uint
 }
 
+type pdpServer struct {
+	policyFile   string
+	contentFiles []string
+}
+
 // policyPlugin represents a plugin instance that can validate DNS
 // requests and replies using PDP server.
 type policyPlugin struct {
 	endpoints       []string
+	pdpSvr          pdpServer
 	options         map[uint16][]*edns0Map
 	confAttrs       map[string]confAttrType
 	tapIO           dnstapSender
@@ -130,15 +137,18 @@ func (p *policyPlugin) connect() error {
 			opts = append(opts, pep.WithHotSpotBalancer(p.endpoints...))
 		}
 	}
-	/* FIXME: KO
+
 	if p.trace != nil {
 		if t, ok := p.trace.(trace.Trace); ok {
 			opts = append(opts, pep.WithTracer(t.Tracer()))
 		}
 	}
-	*/
 
-	p.pdp = pep.NewClient(opts...)
+	if p.pdpSvr.policyFile != "" {
+		p.pdp = pep.NewIntegratedClient(p.pdpSvr.policyFile, p.pdpSvr.contentFiles)
+	} else {
+		p.pdp = pep.NewClient(opts...)
+	}
 	return p.pdp.Connect("")
 }
 
@@ -154,6 +164,9 @@ func (p *policyPlugin) closeConn() {
 
 func (p *policyPlugin) parseOption(c *caddy.Controller) error {
 	switch c.Val() {
+	case "pdp":
+		return p.parsePDP(c)
+
 	case "endpoint":
 		return p.parseEndpoint(c)
 
@@ -186,6 +199,21 @@ func (p *policyPlugin) parseOption(c *caddy.Controller) error {
 	}
 
 	return errInvalidOption
+}
+
+// Usage: pdp policy.[yaml|json] content1 content2...
+func (p *policyPlugin) parsePDP(c *caddy.Controller) error {
+	args := c.RemainingArgs()
+	argsLen := len(args)
+	if argsLen < 1 {
+		return c.ArgErr()
+	}
+
+	p.pdpSvr.policyFile = args[0]
+	if argsLen > 1 {
+		p.pdpSvr.contentFiles = args[1:]
+	}
+	return nil
 }
 
 func (p *policyPlugin) parseEndpoint(c *caddy.Controller) error {

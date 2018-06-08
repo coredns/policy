@@ -57,6 +57,10 @@
   branch = "master"
   name = "golang.org/x/net"
 
+[[override]] 
+    name = "github.com/apache/thrift"
+    revision = "e59b73d3c2bf1c328ccb78e683c0462fa1a473c7"
+
 [prune]
   go-tests = true
   unused-packages = true

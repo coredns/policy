@@ -2,6 +2,17 @@
 
 
 [[projects]]
+  name = "github.com/Shopify/sarama"
+  packages = ["."]
+  revision = "35324cf48e33d8260e1c7c18854465a904ade249"
+  version = "v1.17.0"
+
+[[projects]]
+  name = "github.com/apache/thrift"
+  packages = ["lib/go/thrift"]
+  revision = "e59b73d3c2bf1c328ccb78e683c0462fa1a473c7"
+
+[[projects]]
   branch = "master"
   name = "github.com/beorn7/perks"
   packages = ["quantile"]
@@ -62,10 +73,34 @@
   version = "v1.1.3"
 
 [[projects]]
+  name = "github.com/davecgh/go-spew"
+  packages = ["spew"]
+  revision = "346938d642f2ec3594ed81d874461961cd0faa76"
+  version = "v1.1.0"
+
+[[projects]]
   branch = "master"
   name = "github.com/dnstap/golang-dnstap"
   packages = ["."]
   revision = "2cf77a2b5e11ac8d0ba3892772ac8e1f7b528344"
+
+[[projects]]
+  name = "github.com/eapache/go-resiliency"
+  packages = ["breaker"]
+  revision = "ea41b0fad31007accc7f806884dcdf3da98b79ce"
+  version = "v1.1.0"
+
+[[projects]]
+  branch = "master"
+  name = "github.com/eapache/go-xerial-snappy"
+  packages = ["."]
+  revision = "bb955e01b9346ac19dc29eb16586c90ded99a98c"
+
+[[projects]]
+  name = "github.com/eapache/queue"
+  packages = ["."]
+  revision = "44cc805cf13205b55f69e14bcb69867d1ae92f98"
+  version = "v1.1.0"
 
 [[projects]]
   branch = "master"
@@ -80,6 +115,18 @@
   revision = "3f9db97f856818214da2e1057f8ad84803971cff"
 
 [[projects]]
+  name = "github.com/go-logfmt/logfmt"
+  packages = ["."]
+  revision = "390ab7935ee28ec6b286364bba9b4dd6410cb3d5"
+  version = "v0.3.0"
+
+[[projects]]
+  name = "github.com/gogo/protobuf"
+  packages = ["proto"]
+  revision = "1adfc126b41513cc696b209667c8656ea7aac67c"
+  version = "v1.0.0"
+
+[[projects]]
   name = "github.com/golang/protobuf"
   packages = [
     "proto",
@@ -90,6 +137,12 @@
   ]
   revision = "b4deda0973fb4c70b50d226b1af49f3da59f5265"
   version = "v1.1.0"
+
+[[projects]]
+  branch = "master"
+  name = "github.com/golang/snappy"
+  packages = ["."]
+  revision = "2e65f85255dbc3072edf28d6b5b8efc472979f5a"
 
 [[projects]]
   name = "github.com/google/uuid"
@@ -132,11 +185,24 @@
   branch = "master"
   name = "github.com/infobloxopen/themis"
   packages = [
+    "jparser",
     "pdp",
+    "pdp-control",
     "pdp-service",
+    "pdp/ast",
+    "pdp/ast/jast",
+    "pdp/ast/yast",
+    "pdp/jcon",
+    "pdpserver/server",
     "pep"
   ]
   revision = "c66c00d3f725786dc1a572a2d1387e00538f8d0d"
+
+[[projects]]
+  branch = "master"
+  name = "github.com/kr/logfmt"
+  packages = ["."]
+  revision = "b84e30acd515aadc4b783ad4ff83aff3299bdfe0"
 
 [[projects]]
   name = "github.com/matttproud/golang_protobuf_extensions"
@@ -163,6 +229,12 @@
   version = "v1.0.8"
 
 [[projects]]
+  branch = "master"
+  name = "github.com/opentracing-contrib/go-observer"
+  packages = ["."]
+  revision = "a52f2342449246d5bcc273e65cbdcfa5f7d6c63c"
+
+[[projects]]
   name = "github.com/opentracing/opentracing-go"
   packages = [
     ".",
@@ -171,6 +243,31 @@
   ]
   revision = "1949ddbfd147afd4d964a9f00b24eb291e0e7c38"
   version = "v1.0.2"
+
+[[projects]]
+  name = "github.com/openzipkin/zipkin-go-opentracing"
+  packages = [
+    ".",
+    "flag",
+    "thrift/gen-go/scribe",
+    "thrift/gen-go/zipkincore",
+    "types",
+    "wire"
+  ]
+  revision = "26cf9707480e6b90e5eff22cf0bbf05319154232"
+  version = "v0.3.4"
+
+[[projects]]
+  name = "github.com/pierrec/lz4"
+  packages = ["."]
+  revision = "2fcda4cb7018ce05a25959d2fe08c83e3329f169"
+  version = "v1.1"
+
+[[projects]]
+  name = "github.com/pierrec/xxHash"
+  packages = ["xxHash32"]
+  revision = "f051bb7f1d1aaf1b5a665d74fb6b0217712c69f7"
+  version = "v0.1.1"
 
 [[projects]]
   name = "github.com/prometheus/client_golang"
@@ -210,10 +307,23 @@
 
 [[projects]]
   branch = "master"
+  name = "github.com/rcrowley/go-metrics"
+  packages = ["."]
+  revision = "e2704e165165ec55d062f5919b4b29494e9fa790"
+
+[[projects]]
+  name = "github.com/sirupsen/logrus"
+  packages = ["."]
+  revision = "c155da19408a8799da419ed3eeb0cb5db0ad5dbc"
+  version = "v1.0.5"
+
+[[projects]]
+  branch = "master"
   name = "golang.org/x/crypto"
   packages = [
     "ed25519",
-    "ed25519/internal/edwards25519"
+    "ed25519/internal/edwards25519",
+    "ssh/terminal"
   ]
   revision = "8ac0e0d97ce45cd83d1d7243c060cb8461dda5e9"
 
@@ -235,6 +345,15 @@
     "trace"
   ]
   revision = "1e491301e022f8f977054da4c2d852decd59571f"
+
+[[projects]]
+  branch = "master"
+  name = "golang.org/x/sys"
+  packages = [
+    "unix",
+    "windows"
+  ]
+  revision = "9527bec2660bd847c050fda93a0f0c6dee0800bb"
 
 [[projects]]
   name = "golang.org/x/text"
@@ -294,9 +413,15 @@
   revision = "7a6a684ca69eb4cae85ad0a484f2e531598c047b"
   version = "v1.12.2"
 
+[[projects]]
+  name = "gopkg.in/yaml.v2"
+  packages = ["."]
+  revision = "5420a8b6744d3b0345ab293f6fcba19c978f1183"
+  version = "v2.2.1"
+
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "103a561ef05e5a41648a35cc3fa8adcf7bdb6958b8e388b857645b8664a05b63"
+  inputs-digest = "93a13c49654a014c9e97ded1b6d5301e9a3529810acddf8683c2f81d036853fd"
   solver-name = "gps-cdcl"
   solver-version = 1
