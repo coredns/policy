@@ -676,6 +676,9 @@ func (p *policyPlugin) ServeDNS(ctx context.Context, w dns.ResponseWriter, r *dn
 		} else {
 			respMsg = responseWriter.Msg
 			status = respMsg.Rcode
+			if status == dns.RcodeServerFailure {
+				resolveFailed = true
+			}
 			address := extractRespIP(respMsg)
 			// if external resolver ret code is not RcodeSuccess
 			// address is not filled from the answer
@@ -709,8 +712,10 @@ func (p *policyPlugin) ServeDNS(ctx context.Context, w dns.ResponseWriter, r *dn
 		r = respMsg
 	case typeRedirect:
 		status, err = p.redirect(ctx, w, r, ah.redirect)
+		r.AuthenticatedData = false
 	case typeBlock:
 		status = dns.RcodeNameError
+		r.AuthenticatedData = false
 	case typeRefuse:
 		status = dns.RcodeRefused
 	case typeDrop:
