@@ -5,8 +5,8 @@ package zipkincore
 
 import (
 	"bytes"
-	"context"
 	"reflect"
+	"context"
 	"fmt"
 	"github.com/apache/thrift/lib/go/thrift"
 )

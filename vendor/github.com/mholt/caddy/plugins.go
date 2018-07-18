@@ -39,7 +39,7 @@ var (
 
 	// eventHooks is a map of hook name to Hook. All hooks plugins
 	// must have a name.
-	eventHooks = &sync.Map{}
+	eventHooks = sync.Map{}
 
 	// parsingCallbacks maps server type to map of directive
 	// to list of callback functions. These aren't really
@@ -54,58 +54,32 @@ var (
 
 // DescribePlugins returns a string describing the registered plugins.
 func DescribePlugins() string {
-	pl := ListPlugins()
-
 	str := "Server types:\n"
-	for _, name := range pl["server_types"] {
-		str += "  " + name + "\n"
-	}
-
-	str += "\nCaddyfile loaders:\n"
-	for _, name := range pl["caddyfile_loaders"] {
-		str += "  " + name + "\n"
-	}
-
-	if len(pl["event_hooks"]) > 0 {
-		str += "\nEvent hook plugins:\n"
-		for _, name := range pl["event_hooks"] {
-			str += "  hook." + name + "\n"
-		}
-	}
-
-	str += "\nOther plugins:\n"
-	for _, name := range pl["others"] {
-		str += "  " + name + "\n"
-	}
-
-	return str
-}
-
-// ListPlugins makes a list of the registered plugins,
-// keyed by plugin type.
-func ListPlugins() map[string][]string {
-	p := make(map[string][]string)
-
-	// server type plugins
 	for name := range serverTypes {
-		p["server_types"] = append(p["server_types"], name)
+		str += "  " + name + "\n"
 	}
 
-	// caddyfile loaders in registration order
+	// List the loaders in registration order
+	str += "\nCaddyfile loaders:\n"
 	for _, loader := range caddyfileLoaders {
-		p["caddyfile_loaders"] = append(p["caddyfile_loaders"], loader.name)
+		str += "  " + loader.name + "\n"
 	}
 	if defaultCaddyfileLoader.name != "" {
-		p["caddyfile_loaders"] = append(p["caddyfile_loaders"], defaultCaddyfileLoader.name)
+		str += "  " + defaultCaddyfileLoader.name + "\n"
 	}
 
 	// List the event hook plugins
+	hooks := ""
 	eventHooks.Range(func(k, _ interface{}) bool {
-		p["event_hooks"] = append(p["event_hooks"], k.(string))
+		hooks += "  hook." + k.(string) + "\n"
 		return true
 	})
+	if hooks != "" {
+		str += "\nEvent hook plugins:\n"
+		str += hooks
+	}
 
-	// alphabetize the rest of the plugins
+	// Let's alphabetize the rest of these...
 	var others []string
 	for stype, stypePlugins := range plugins {
 		for name := range stypePlugins {
@@ -119,11 +93,12 @@ func ListPlugins() map[string][]string {
 	}
 
 	sort.Strings(others)
+	str += "\nOther plugins:\n"
 	for _, name := range others {
-		p["others"] = append(p["others"], name)
+		str += "  " + name + "\n"
 	}
 
-	return p
+	return str
 }
 
 // ValidDirectives returns the list of all directives that are
@@ -292,36 +267,6 @@ func EmitEvent(event EventName, info interface{}) {
 		if err != nil {
 			log.Printf("error on '%s' hook: %v", k.(string), err)
 		}
-		return true
-	})
-}
-
-// cloneEventHooks return a clone of the event hooks *sync.Map
-func cloneEventHooks() *sync.Map {
-	c := &sync.Map{}
-	eventHooks.Range(func(k, v interface{}) bool {
-		c.Store(k, v)
-		return true
-	})
-	return c
-}
-
-// purgeEventHooks purges all event hooks from the map
-func purgeEventHooks() {
-	eventHooks.Range(func(k, _ interface{}) bool {
-		eventHooks.Delete(k)
-		return true
-	})
-}
-
-// restoreEventHooks restores eventHooks with a provided *sync.Map
-func restoreEventHooks(m *sync.Map) {
-	// Purge old event hooks
-	purgeEventHooks()
-
-	// Restore event hooks
-	m.Range(func(k, v interface{}) bool {
-		eventHooks.Store(k, v)
 		return true
 	})
 }

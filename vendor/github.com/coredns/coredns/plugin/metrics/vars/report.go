@@ -1,17 +1,15 @@
 package vars
 
 import (
-	"context"
 	"time"
 
-	"github.com/coredns/coredns/plugin"
 	"github.com/coredns/coredns/request"
 
 	"github.com/miekg/dns"
 )
 
 // Report reports the metrics data associcated with request.
-func Report(ctx context.Context, req request.Request, zone, rcode string, size int, start time.Time) {
+func Report(req request.Request, zone, rcode string, size int, start time.Time) {
 	// Proto and Family.
 	net := req.Proto()
 	fam := "1"
@@ -19,35 +17,25 @@ func Report(ctx context.Context, req request.Request, zone, rcode string, size i
 		fam = "2"
 	}
 
-	server := WithServer(ctx)
-
 	typ := req.QType()
-	RequestCount.WithLabelValues(server, zone, net, fam).Inc()
-	RequestDuration.WithLabelValues(server, zone).Observe(time.Since(start).Seconds())
+
+	RequestCount.WithLabelValues(zone, net, fam).Inc()
+	RequestDuration.WithLabelValues(zone).Observe(time.Since(start).Seconds())
 
 	if req.Do() {
-		RequestDo.WithLabelValues(server, zone).Inc()
+		RequestDo.WithLabelValues(zone).Inc()
 	}
 
 	if _, known := monitorType[typ]; known {
-		RequestType.WithLabelValues(server, zone, dns.Type(typ).String()).Inc()
+		RequestType.WithLabelValues(zone, dns.Type(typ).String()).Inc()
 	} else {
-		RequestType.WithLabelValues(server, zone, other).Inc()
+		RequestType.WithLabelValues(zone, other).Inc()
 	}
 
-	ResponseSize.WithLabelValues(server, zone, net).Observe(float64(size))
-	RequestSize.WithLabelValues(server, zone, net).Observe(float64(req.Len()))
+	ResponseSize.WithLabelValues(zone, net).Observe(float64(size))
+	RequestSize.WithLabelValues(zone, net).Observe(float64(req.Len()))
 
-	ResponseRcode.WithLabelValues(server, zone, rcode).Inc()
-}
-
-// WithServer returns the current server handling the request.
-func WithServer(ctx context.Context) string {
-	srv := ctx.Value(plugin.ServerCtx{})
-	if srv == nil {
-		return ""
-	}
-	return srv.(string)
+	ResponseRcode.WithLabelValues(zone, rcode).Inc()
 }
 
 var monitorType = map[uint16]bool{

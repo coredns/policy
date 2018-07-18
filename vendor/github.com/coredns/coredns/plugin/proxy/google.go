@@ -1,11 +1,11 @@
 package proxy
 
 import (
-	"context"
 	"crypto/tls"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"log"
 	"net"
 	"net/http"
 	"net/url"
@@ -15,6 +15,7 @@ import (
 	"github.com/coredns/coredns/request"
 
 	"github.com/miekg/dns"
+	"golang.org/x/net/context"
 )
 
 type google struct {
@@ -27,9 +28,6 @@ type google struct {
 }
 
 func newGoogle(endpoint string, bootstrap []string) *google {
-	// TODO(miek): Deprecate after 1.1.3 (that would be 1.2.0)
-	log.Warning("https_google will be deprecated in the next release")
-
 	if endpoint == "" {
 		endpoint = ghost
 	}
@@ -67,7 +65,7 @@ func (g *google) Exchange(ctx context.Context, addr string, state request.Reques
 		return m, nil
 	}
 
-	log.Warningf("Failed to connect to HTTPS backend %q: %s", g.endpoint, backendErr)
+	log.Printf("[WARNING] Failed to connect to HTTPS backend %q: %s", g.endpoint, backendErr)
 	return nil, backendErr
 }
 
@@ -121,17 +119,17 @@ func (g *google) OnStartup(p *Proxy) error {
 
 	new, err := g.bootstrapProxy.Lookup(state, g.endpoint, dns.TypeA)
 	if err != nil {
-		log.Warningf("Failed to bootstrap A records %q: %s", g.endpoint, err)
+		log.Printf("[WARNING] Failed to bootstrap A records %q: %s", g.endpoint, err)
 	} else {
 		addrs, err1 := extractAnswer(new)
 		if err1 != nil {
-			log.Warningf("Failed to bootstrap A records %q: %s", g.endpoint, err1)
+			log.Printf("[WARNING] Failed to bootstrap A records %q: %s", g.endpoint, err1)
 		} else {
 
 			up := newUpstream(addrs, oldUpstream.(*staticUpstream))
 			p.Upstreams = &[]Upstream{up}
 
-			log.Infof("Bootstrapping A records %q found: %v", g.endpoint, addrs)
+			log.Printf("[INFO] Bootstrapping A records %q found: %v", g.endpoint, addrs)
 		}
 	}
 
@@ -142,24 +140,24 @@ func (g *google) OnStartup(p *Proxy) error {
 			select {
 			case <-tick.C:
 
-				log.Infof("Resolving A records %q", g.endpoint)
+				log.Printf("[INFO] Resolving A records %q", g.endpoint)
 
 				new, err := g.bootstrapProxy.Lookup(state, g.endpoint, dns.TypeA)
 				if err != nil {
-					log.Warningf("Failed to resolve A records %q: %s", g.endpoint, err)
+					log.Printf("[WARNING] Failed to resolve A records %q: %s", g.endpoint, err)
 					continue
 				}
 
 				addrs, err1 := extractAnswer(new)
 				if err1 != nil {
-					log.Warningf("Failed to resolve A records %q: %s", g.endpoint, err1)
+					log.Printf("[WARNING] Failed to resolve A records %q: %s", g.endpoint, err1)
 					continue
 				}
 
 				up := newUpstream(addrs, oldUpstream.(*staticUpstream))
 				p.Upstreams = &[]Upstream{up}
 
-				log.Infof("Resolving A records %q found: %v", g.endpoint, addrs)
+				log.Printf("[INFO] Resolving A records %q found: %v", g.endpoint, addrs)
 
 			case <-g.quit:
 				return

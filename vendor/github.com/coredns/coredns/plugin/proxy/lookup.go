@@ -3,7 +3,6 @@ package proxy
 // functions other plugin might want to use to do lookup in the same style as the proxy.
 
 import (
-	"context"
 	"fmt"
 	"net"
 	"sync/atomic"
@@ -13,6 +12,7 @@ import (
 	"github.com/coredns/coredns/request"
 
 	"github.com/miekg/dns"
+	"golang.org/x/net/context"
 )
 
 // NewLookup create a new proxy with the hosts in host and a Random policy.
@@ -92,11 +92,6 @@ func (p Proxy) lookup(state request.Request) (*dns.Msg, error) {
 			atomic.AddInt64(&host.Conns, -1)
 
 			if backendErr == nil {
-
-				if !state.Match(reply) {
-					return state.ErrorMessage(dns.RcodeFormatError), nil
-				}
-
 				return reply, nil
 			}
 

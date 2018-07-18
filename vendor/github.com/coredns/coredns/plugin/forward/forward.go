@@ -5,7 +5,6 @@
 package forward
 
 import (
-	"context"
 	"crypto/tls"
 	"errors"
 	"time"
@@ -15,6 +14,7 @@ import (
 
 	"github.com/miekg/dns"
 	ot "github.com/opentracing/opentracing-go"
+	"golang.org/x/net/context"
 )
 
 // Forward represents a plugin instance that can proxy requests to another (DNS) server. It has a list
@@ -65,21 +65,9 @@ func (f *Forward) ServeDNS(ctx context.Context, w dns.ResponseWriter, r *dns.Msg
 
 	fails := 0
 	var span, child ot.Span
-	var upstreamErr error
 	span = ot.SpanFromContext(ctx)
-	i := 0
-	list := f.List()
-	deadline := time.Now().Add(defaultTimeout)
 
-	for time.Now().Before(deadline) {
-		if i >= len(list) {
-			// reached the end of list, reset to begin
-			i = 0
-			fails = 0
-		}
-
-		proxy := list[i]
-		i++
+	for _, proxy := range f.list() {
 		if proxy.Down(f.maxfails) {
 			fails++
 			if fails < len(f.proxies) {
@@ -98,24 +86,26 @@ func (f *Forward) ServeDNS(ctx context.Context, w dns.ResponseWriter, r *dns.Msg
 			ctx = ot.ContextWithSpan(ctx, child)
 		}
 
-		var (
-			ret *dns.Msg
-			err error
-		)
-		for {
-			ret, err = proxy.Connect(ctx, state, f.forceTCP, true)
-			if err != nil && err == ErrCachedClosed { // Remote side closed conn, can only happen with TCP.
-				continue
-			}
-			break
-		}
+		ret, err := proxy.connect(ctx, state, f.forceTCP, true)
 
 		if child != nil {
 			child.Finish()
 		}
 
-		ret, err = truncated(state, ret, err)
-		upstreamErr = err
+		// If you query for instance ANY isc.org; you get a truncated query back which miekg/dns fails to unpack
+		// because the RRs are not finished. The returned message can be useful or useless. Return the original
+		// query with some header bits set that they should retry with TCP.
+		if err == dns.ErrTruncated {
+			// We may or may not have something sensible... if not reassemble something to send to the client.
+			if ret == nil {
+				ret = new(dns.Msg)
+				ret.SetReply(r)
+				ret.Truncated = true
+				ret.Authoritative = true
+				ret.Rcode = dns.RcodeSuccess
+			}
+			err = nil // and reset err to pass this back to the client.
+		}
 
 		if err != nil {
 			// Kick off health check to see if *our* upstream is broken.
@@ -129,13 +119,7 @@ func (f *Forward) ServeDNS(ctx context.Context, w dns.ResponseWriter, r *dns.Msg
 			break
 		}
 
-		// Check if the reply is correct; if not return FormErr.
-		if !state.Match(ret) {
-			formerr := state.ErrorMessage(dns.RcodeFormatError)
-			w.WriteMsg(formerr)
-			return 0, nil
-		}
-
+		ret.Compress = true
 		// When using force_tcp the upstream can send a message that is too big for
 		// the udp buffer, hence we need to truncate the message to at least make it
 		// fit the udp buffer.
@@ -146,11 +130,7 @@ func (f *Forward) ServeDNS(ctx context.Context, w dns.ResponseWriter, r *dns.Msg
 		return 0, nil
 	}
 
-	if upstreamErr != nil {
-		return dns.RcodeServerFailure, upstreamErr
-	}
-
-	return dns.RcodeServerFailure, ErrNoHealthy
+	return dns.RcodeServerFailure, errNoHealthy
 }
 
 func (f *Forward) match(state request.Request) bool {
@@ -176,22 +156,13 @@ func (f *Forward) isAllowedDomain(name string) bool {
 	return true
 }
 
-// From returns the base domain to match for the request to be forwarded.
-func (f *Forward) From() string { return f.from }
-
-// ForceTCP returns if TCP is forced to be used even when the request comes in over UDP.
-func (f *Forward) ForceTCP() bool { return f.forceTCP }
-
 // List returns a set of proxies to be used for this client depending on the policy in f.
-func (f *Forward) List() []*Proxy { return f.p.List(f.proxies) }
+func (f *Forward) list() []*Proxy { return f.p.List(f.proxies) }
 
 var (
-	// ErrNoHealthy means no healthy proxies left
-	ErrNoHealthy = errors.New("no healthy proxies")
-	// ErrNoForward means no forwarder defined
-	ErrNoForward = errors.New("no forwarder defined")
-	// ErrCachedClosed means cached connection was closed by peer
-	ErrCachedClosed = errors.New("cached connection was closed by peer")
+	errInvalidDomain = errors.New("invalid domain for forward")
+	errNoHealthy     = errors.New("no healthy proxies or upstream error")
+	errNoForward     = errors.New("no forwarder defined")
 )
 
 // policy tells forward what policy for selecting upstream it uses.
@@ -200,7 +171,4 @@ type policy int
 const (
 	randomPolicy policy = iota
 	roundRobinPolicy
-	sequentialPolicy
 )
-
-const defaultTimeout = 5 * time.Second

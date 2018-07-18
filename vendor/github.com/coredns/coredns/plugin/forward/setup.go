@@ -38,7 +38,17 @@ func setup(c *caddy.Controller) error {
 
 	c.OnStartup(func() error {
 		once.Do(func() {
-			metrics.MustRegister(c, RequestCount, RcodeCount, RequestDuration, HealthcheckFailureCount, SocketGauge)
+			m := dnsserver.GetConfig(c).Handler("prometheus")
+			if m == nil {
+				return
+			}
+			if x, ok := m.(*metrics.Metrics); ok {
+				x.MustRegister(RequestCount)
+				x.MustRegister(RcodeCount)
+				x.MustRegister(RequestDuration)
+				x.MustRegister(HealthcheckFailureCount)
+				x.MustRegister(SocketGauge)
+			}
 		})
 		return f.OnStartup()
 	})
@@ -114,7 +124,7 @@ func parseForward(c *caddy.Controller) (*Forward, error) {
 					break
 				}
 
-				// This is more of a bug in dnsutil.ParseHostPortOrFile that defaults to
+				// This is more of a bug in // dnsutil.ParseHostPortOrFile that defaults to
 				// 53 because it doesn't know about the tls:// // and friends (that should be fixed). Hence
 				// Fix the port number here, back to what the user intended.
 				if p == "53" {
@@ -190,11 +200,11 @@ func parseBlock(c *caddy.Controller, f *Forward) error {
 		f.forceTCP = true
 	case "tls":
 		args := c.RemainingArgs()
-		if len(args) > 3 {
+		if len(args) != 3 {
 			return c.ArgErr()
 		}
 
-		tlsConfig, err := pkgtls.NewTLSConfigFromArgs(args...)
+		tlsConfig, err := pkgtls.NewTLSConfig(args[0], args[1], args[2])
 		if err != nil {
 			return err
 		}
@@ -225,8 +235,6 @@ func parseBlock(c *caddy.Controller, f *Forward) error {
 			f.p = &random{}
 		case "round_robin":
 			f.p = &roundRobin{}
-		case "sequential":
-			f.p = &sequential{}
 		default:
 			return c.Errf("unknown policy '%s'", x)
 		}

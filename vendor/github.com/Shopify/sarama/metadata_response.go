@@ -1,15 +1,14 @@
 package sarama
 
 type PartitionMetadata struct {
-	Err             KError
-	ID              int32
-	Leader          int32
-	Replicas        []int32
-	Isr             []int32
-	OfflineReplicas []int32
+	Err      KError
+	ID       int32
+	Leader   int32
+	Replicas []int32
+	Isr      []int32
 }
 
-func (pm *PartitionMetadata) decode(pd packetDecoder, version int16) (err error) {
+func (pm *PartitionMetadata) decode(pd packetDecoder) (err error) {
 	tmp, err := pd.getInt16()
 	if err != nil {
 		return err
@@ -36,17 +35,10 @@ func (pm *PartitionMetadata) decode(pd packetDecoder, version int16) (err error)
 		return err
 	}
 
-	if version >= 5 {
-		pm.OfflineReplicas, err = pd.getInt32Array()
-		if err != nil {
-			return err
-		}
-	}
-
 	return nil
 }
 
-func (pm *PartitionMetadata) encode(pe packetEncoder, version int16) (err error) {
+func (pm *PartitionMetadata) encode(pe packetEncoder) (err error) {
 	pe.putInt16(int16(pm.Err))
 	pe.putInt32(pm.ID)
 	pe.putInt32(pm.Leader)
@@ -59,13 +51,6 @@ func (pm *PartitionMetadata) encode(pe packetEncoder, version int16) (err error)
 	err = pe.putInt32Array(pm.Isr)
 	if err != nil {
 		return err
-	}
-
-	if version >= 5 {
-		err = pe.putInt32Array(pm.OfflineReplicas)
-		if err != nil {
-			return err
-		}
 	}
 
 	return nil
@@ -104,7 +89,7 @@ func (tm *TopicMetadata) decode(pd packetDecoder, version int16) (err error) {
 	tm.Partitions = make([]*PartitionMetadata, n)
 	for i := 0; i < n; i++ {
 		tm.Partitions[i] = new(PartitionMetadata)
-		err = tm.Partitions[i].decode(pd, version)
+		err = tm.Partitions[i].decode(pd)
 		if err != nil {
 			return err
 		}
@@ -131,7 +116,7 @@ func (tm *TopicMetadata) encode(pe packetEncoder, version int16) (err error) {
 	}
 
 	for _, pm := range tm.Partitions {
-		err = pm.encode(pe, version)
+		err = pm.encode(pe)
 		if err != nil {
 			return err
 		}
@@ -141,24 +126,13 @@ func (tm *TopicMetadata) encode(pe packetEncoder, version int16) (err error) {
 }
 
 type MetadataResponse struct {
-	Version        int16
-	ThrottleTimeMs int32
-	Brokers        []*Broker
-	ClusterID      *string
-	ControllerID   int32
-	Topics         []*TopicMetadata
+	Version      int16
+	Brokers      []*Broker
+	ControllerID int32
+	Topics       []*TopicMetadata
 }
 
 func (r *MetadataResponse) decode(pd packetDecoder, version int16) (err error) {
-	r.Version = version
-
-	if version >= 3 {
-		r.ThrottleTimeMs, err = pd.getInt32()
-		if err != nil {
-			return err
-		}
-	}
-
 	n, err := pd.getArrayLength()
 	if err != nil {
 		return err
@@ -168,13 +142,6 @@ func (r *MetadataResponse) decode(pd packetDecoder, version int16) (err error) {
 	for i := 0; i < n; i++ {
 		r.Brokers[i] = new(Broker)
 		err = r.Brokers[i].decode(pd, version)
-		if err != nil {
-			return err
-		}
-	}
-
-	if version >= 2 {
-		r.ClusterID, err = pd.getNullableString()
 		if err != nil {
 			return err
 		}
@@ -241,22 +208,11 @@ func (r *MetadataResponse) key() int16 {
 }
 
 func (r *MetadataResponse) version() int16 {
-	return r.Version
+	return 0
 }
 
 func (r *MetadataResponse) requiredVersion() KafkaVersion {
-	switch r.Version {
-	case 1:
-		return V0_10_0_0
-	case 2:
-		return V0_10_1_0
-	case 3, 4:
-		return V0_11_0_0
-	case 5:
-		return V1_0_0_0
-	default:
-		return MinVersion
-	}
+	return MinVersion
 }
 
 // testing API

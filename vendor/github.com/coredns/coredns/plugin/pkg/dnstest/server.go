@@ -23,15 +23,8 @@ func NewServer(f dns.HandlerFunc) *Server {
 	ch1 := make(chan bool)
 	ch2 := make(chan bool)
 
-	l, _ := net.Listen("tcp", ":0")
-	if l == nil {
-		return nil
-	}
-	p, _ := net.ListenPacket("udp", l.Addr().String())
-	if p == nil {
-		l.Close()
-		return nil // yes, this may crash some test, but this is better than hanging
-	}
+	p, _ := net.ListenPacket("udp", ":0")
+	l, _ := net.Listen("tcp", p.LocalAddr().String())
 
 	s1 := &dns.Server{PacketConn: p}
 	s2 := &dns.Server{Listener: l}

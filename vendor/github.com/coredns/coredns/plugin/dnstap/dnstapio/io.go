@@ -1,17 +1,14 @@
 package dnstapio
 
 import (
+	"log"
 	"net"
 	"sync/atomic"
 	"time"
 
-	clog "github.com/coredns/coredns/plugin/pkg/log"
-
 	tap "github.com/dnstap/golang-dnstap"
 	fs "github.com/farsightsec/golang-framestream"
 )
-
-var log = clog.NewWithPlugin("dnstap")
 
 const (
 	tcpWriteBufSize = 1024 * 1024
@@ -73,7 +70,7 @@ func (dio *dnstapIO) newConnect() error {
 // Connect connects to the dnstop endpoint.
 func (dio *dnstapIO) Connect() {
 	if err := dio.newConnect(); err != nil {
-		log.Error("No connection to dnstap endpoint")
+		log.Printf("[ERROR] No connection to dnstap endpoint")
 	}
 	go dio.serve()
 }
@@ -105,16 +102,16 @@ func (dio *dnstapIO) flushBuffer() {
 		if err := dio.newConnect(); err != nil {
 			return
 		}
-		log.Info("Reconnected to dnstap")
+		log.Printf("[INFO] Reconnected to dnstap")
 	}
 
 	if err := dio.enc.flushBuffer(); err != nil {
-		log.Warningf("Connection lost: %s", err)
+		log.Printf("[WARN] Connection lost: %s", err)
 		dio.closeConnection()
 		if err := dio.newConnect(); err != nil {
-			log.Errorf("Cannot connect to dnstap: %s", err)
+			log.Printf("[ERROR] Cannot connect to dnstap: %s", err)
 		} else {
-			log.Info("Reconnected to dnstap")
+			log.Printf("[INFO] Reconnected to dnstap")
 		}
 	}
 }
@@ -137,7 +134,7 @@ func (dio *dnstapIO) serve() {
 			dio.write(&payload)
 		case <-timeout:
 			if dropped := atomic.SwapUint32(&dio.dropped, 0); dropped > 0 {
-				log.Warningf("Dropped dnstap messages: %d", dropped)
+				log.Printf("[WARN] Dropped dnstap messages: %d", dropped)
 			}
 			dio.flushBuffer()
 			timeout = time.After(flushTimeout)

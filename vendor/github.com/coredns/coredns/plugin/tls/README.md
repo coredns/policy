@@ -22,10 +22,8 @@ wire data of a DNS message.
 ## Syntax
 
 ~~~ txt
-tls CERT KEY [CA]
+tls CERT KEY CA
 ~~~
-
-Parameter CA is optional. If not set, system CAs can be used to verify the client certificate
 
 ## Examples
 

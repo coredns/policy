@@ -14,9 +14,8 @@ test:
 vet:
 	go vet ./...
 
-# See https://github.com/kisielk/errcheck/pull/141 for details on ignorepkg
 errcheck:
-	errcheck -ignorepkg fmt github.com/Shopify/sarama/...
+	errcheck github.com/Shopify/sarama/...
 
 fmt:
 	@if [ -n "$$(go fmt ./...)" ]; then echo 'Please run go fmt on your code.' && exit 1; fi

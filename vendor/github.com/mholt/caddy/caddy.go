@@ -44,7 +44,6 @@ import (
 	"time"
 
 	"github.com/mholt/caddy/caddyfile"
-	"github.com/mholt/caddy/telemetry"
 )
 
 // Configurable application parameters
@@ -123,7 +122,6 @@ type Instance struct {
 	StorageMu sync.RWMutex
 }
 
-// Instances returns the list of instances.
 func Instances() []*Instance {
 	return instances
 }
@@ -617,8 +615,6 @@ func ValidateAndExecuteDirectives(cdyfile Input, inst *Instance, justValidate bo
 		return fmt.Errorf("error inspecting server blocks: %v", err)
 	}
 
-	telemetry.Set("num_server_blocks", len(sblocks))
-
 	return executeDirectives(inst, cdyfile.Path(), stype.Directives(), sblocks, justValidate)
 }
 
@@ -802,7 +798,7 @@ func startServers(serverList []Server, inst *Instance, restartFds map[string]res
 				continue
 			}
 			if strings.Contains(err.Error(), "use of closed network connection") {
-				// this error is normal when closing the listener; see https://github.com/golang/go/issues/4373
+				// this error is normal when closing the listener
 				continue
 			}
 			log.Println(err)
@@ -873,7 +869,7 @@ func Stop() error {
 // explicitly like a common local hostname. addr must only
 // be a host or a host:port combination.
 func IsLoopback(addr string) bool {
-	host, _, err := net.SplitHostPort(strings.ToLower(addr))
+	host, _, err := net.SplitHostPort(addr)
 	if err != nil {
 		host = addr // happens if the addr is just a hostname
 	}

@@ -14,6 +14,12 @@ type persistConn struct {
 	used time.Time
 }
 
+// connErr is used to communicate the connection manager.
+type connErr struct {
+	c   *dns.Conn
+	err error
+}
+
 // transport hold the persistent cache.
 type transport struct {
 	conns     map[string][]*persistConn //  Buckets for udp, tcp and tcp-tls.
@@ -22,22 +28,29 @@ type transport struct {
 	tlsConfig *tls.Config
 
 	dial  chan string
-	yield chan *dns.Conn
-	ret   chan *dns.Conn
-	stop  chan bool
+	yield chan connErr
+	ret   chan connErr
+
+	// Aid in testing, gets length of cache in data-race safe manner.
+	lenc    chan bool
+	lencOut chan int
+
+	stop chan bool
 }
 
 func newTransport(addr string, tlsConfig *tls.Config) *transport {
 	t := &transport{
-		conns:  make(map[string][]*persistConn),
-		expire: defaultExpire,
-		addr:   addr,
-		dial:   make(chan string),
-		yield:  make(chan *dns.Conn),
-		ret:    make(chan *dns.Conn),
-		stop:   make(chan bool),
+		conns:   make(map[string][]*persistConn),
+		expire:  defaultExpire,
+		addr:    addr,
+		dial:    make(chan string),
+		yield:   make(chan connErr),
+		ret:     make(chan connErr),
+		stop:    make(chan bool),
+		lenc:    make(chan bool),
+		lencOut: make(chan int),
 	}
-	go func() { t.connManager() }()
+	go t.connManager()
 	return t
 }
 
@@ -48,6 +61,13 @@ func (t *transport) len() int {
 	for _, conns := range t.conns {
 		l += len(conns)
 	}
+	return l
+}
+
+// Len returns the number of connections in the cache.
+func (t *transport) Len() int {
+	t.lenc <- true
+	l := <-t.lencOut
 	return l
 }
 
@@ -66,7 +86,7 @@ Wait:
 				if time.Since(pc.used) < t.expire {
 					// Found one, remove from pool and return this conn.
 					t.conns[proto] = t.conns[proto][i+1:]
-					t.ret <- pc.c
+					t.ret <- connErr{pc.c, nil}
 					continue Wait
 				}
 				// This conn has expired. Close it.
@@ -77,34 +97,49 @@ Wait:
 			t.conns[proto] = t.conns[proto][i:]
 			SocketGauge.WithLabelValues(t.addr).Set(float64(t.len()))
 
-			t.ret <- nil
+			go func() {
+				if proto != "tcp-tls" {
+					c, err := dns.DialTimeout(proto, t.addr, dialTimeout)
+					t.ret <- connErr{c, err}
+					return
+				}
+
+				c, err := dns.DialTimeoutWithTLS("tcp", t.addr, t.tlsConfig, dialTimeout)
+				t.ret <- connErr{c, err}
+			}()
 
 		case conn := <-t.yield:
 
 			SocketGauge.WithLabelValues(t.addr).Set(float64(t.len() + 1))
 
 			// no proto here, infer from config and conn
-			if _, ok := conn.Conn.(*net.UDPConn); ok {
-				t.conns["udp"] = append(t.conns["udp"], &persistConn{conn, time.Now()})
+			if _, ok := conn.c.Conn.(*net.UDPConn); ok {
+				t.conns["udp"] = append(t.conns["udp"], &persistConn{conn.c, time.Now()})
 				continue Wait
 			}
 
 			if t.tlsConfig == nil {
-				t.conns["tcp"] = append(t.conns["tcp"], &persistConn{conn, time.Now()})
+				t.conns["tcp"] = append(t.conns["tcp"], &persistConn{conn.c, time.Now()})
 				continue Wait
 			}
 
-			t.conns["tcp-tls"] = append(t.conns["tcp-tls"], &persistConn{conn, time.Now()})
+			t.conns["tcp-tls"] = append(t.conns["tcp-tls"], &persistConn{conn.c, time.Now()})
 
 		case <-t.stop:
-			close(t.ret)
 			return
+
+		case <-t.lenc:
+			l := 0
+			for _, conns := range t.conns {
+				l += len(conns)
+			}
+			t.lencOut <- l
 		}
 	}
 }
 
 // Dial dials the address configured in transport, potentially reusing a connection or creating a new one.
-func (t *transport) Dial(proto string) (*dns.Conn, bool, error) {
+func (t *transport) Dial(proto string) (*dns.Conn, error) {
 	// If tls has been configured; use it.
 	if t.tlsConfig != nil {
 		proto = "tcp-tls"
@@ -112,24 +147,16 @@ func (t *transport) Dial(proto string) (*dns.Conn, bool, error) {
 
 	t.dial <- proto
 	c := <-t.ret
-
-	if c != nil {
-		return c, true, nil
-	}
-
-	if proto == "tcp-tls" {
-		conn, err := dns.DialTimeoutWithTLS("tcp", t.addr, t.tlsConfig, dialTimeout)
-		return conn, false, err
-	}
-	conn, err := dns.DialTimeout(proto, t.addr, dialTimeout)
-	return conn, false, err
+	return c.c, c.err
 }
 
 // Yield return the connection to transport for reuse.
-func (t *transport) Yield(c *dns.Conn) { t.yield <- c }
+func (t *transport) Yield(c *dns.Conn) {
+	t.yield <- connErr{c, nil}
+}
 
 // Stop stops the transport's connection manager.
-func (t *transport) Stop() { close(t.stop) }
+func (t *transport) Stop() { t.stop <- true }
 
 // SetExpire sets the connection expire time in transport.
 func (t *transport) SetExpire(expire time.Duration) { t.expire = expire }

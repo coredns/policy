@@ -1,6 +1,7 @@
 package file
 
 import (
+	"log"
 	"math/rand"
 	"time"
 
@@ -26,19 +27,19 @@ Transfer:
 		t := new(dns.Transfer)
 		c, err := t.In(m, tr)
 		if err != nil {
-			log.Errorf("Failed to setup transfer `%s' with `%q': %v", z.origin, tr, err)
+			log.Printf("[ERROR] Failed to setup transfer `%s' with `%q': %v", z.origin, tr, err)
 			Err = err
 			continue Transfer
 		}
 		for env := range c {
 			if env.Error != nil {
-				log.Errorf("Failed to transfer `%s' from %q: %v", z.origin, tr, env.Error)
+				log.Printf("[ERROR] Failed to transfer `%s' from %q: %v", z.origin, tr, env.Error)
 				Err = env.Error
 				continue Transfer
 			}
 			for _, rr := range env.RR {
 				if err := z1.Insert(rr); err != nil {
-					log.Errorf("Failed to parse transfer `%s' from: %q: %v", z.origin, tr, err)
+					log.Printf("[ERROR] Failed to parse transfer `%s' from: %q: %v", z.origin, tr, err)
 					Err = err
 					continue Transfer
 				}
@@ -54,7 +55,7 @@ Transfer:
 	z.Tree = z1.Tree
 	z.Apex = z1.Apex
 	*z.Expired = false
-	log.Infof("Transferred: %s from %s", z.origin, tr)
+	log.Printf("[INFO] Transferred: %s from %s", z.origin, tr)
 	return nil
 }
 
@@ -138,7 +139,7 @@ Restart:
 
 			ok, err := z.shouldTransfer()
 			if err != nil {
-				log.Warningf("Failed retry check %s", err)
+				log.Printf("[WARNING] Failed retry check %s", err)
 				continue
 			}
 
@@ -161,7 +162,7 @@ Restart:
 
 			ok, err := z.shouldTransfer()
 			if err != nil {
-				log.Warningf("Failed refresh check %s", err)
+				log.Printf("[WARNING] Failed refresh check %s", err)
 				retryActive = true
 				continue
 			}

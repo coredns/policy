@@ -52,13 +52,11 @@ func logParse(c *caddy.Controller) ([]Rule, error) {
 			rules = append(rules, Rule{
 				NameScope: ".",
 				Format:    DefaultLogFormat,
-				Class:     make(map[response.Class]bool),
 			})
 		} else if len(args) == 1 {
 			rules = append(rules, Rule{
 				NameScope: dns.Fqdn(args[0]),
 				Format:    DefaultLogFormat,
-				Class:     make(map[response.Class]bool),
 			})
 		} else {
 			// Name scope, and maybe a format specified
@@ -76,32 +74,27 @@ func logParse(c *caddy.Controller) ([]Rule, error) {
 			rules = append(rules, Rule{
 				NameScope: dns.Fqdn(args[0]),
 				Format:    format,
-				Class:     make(map[response.Class]bool),
 			})
 		}
 
 		// Class refinements in an extra block.
 		for c.NextBlock() {
 			switch c.Val() {
-			// class followed by combinations of all, denial, error and success.
+			// class followed by all, denial, error or success.
 			case "class":
 				classes := c.RemainingArgs()
 				if len(classes) == 0 {
 					return nil, c.ArgErr()
 				}
-				for _, c := range classes {
-					cls, err := response.ClassFromString(c)
-					if err != nil {
-						return nil, err
-					}
-					rules[len(rules)-1].Class[cls] = true
+				cls, err := response.ClassFromString(classes[0])
+				if err != nil {
+					return nil, err
 				}
+				// update class and the last added Rule (bit icky)
+				rules[len(rules)-1].Class = cls
 			default:
 				return nil, c.ArgErr()
 			}
-		}
-		if len(rules[len(rules)-1].Class) == 0 {
-			rules[len(rules)-1].Class[response.All] = true
 		}
 	}
 

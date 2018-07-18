@@ -9,12 +9,9 @@ import (
 	"github.com/coredns/coredns/plugin"
 	"github.com/coredns/coredns/plugin/metrics"
 	"github.com/coredns/coredns/plugin/pkg/cache"
-	clog "github.com/coredns/coredns/plugin/pkg/log"
 
 	"github.com/mholt/caddy"
 )
-
-var log = clog.NewWithPlugin("cache")
 
 func init() {
 	caddy.RegisterPlugin("cache", caddy.Plugin{
@@ -35,12 +32,28 @@ func setup(c *caddy.Controller) error {
 
 	c.OnStartup(func() error {
 		once.Do(func() {
-			metrics.MustRegister(c,
-				cacheSize, cacheHits, cacheMisses,
-				cachePrefetches, cacheDrops)
+			m := dnsserver.GetConfig(c).Handler("prometheus")
+			if m == nil {
+				return
+			}
+			if x, ok := m.(*metrics.Metrics); ok {
+				x.MustRegister(cacheSize)
+				x.MustRegister(cacheCapacity)
+				x.MustRegister(cacheHits)
+				x.MustRegister(cacheMisses)
+				x.MustRegister(cachePrefetches)
+			}
 		})
 		return nil
 	})
+
+	// Initialize all counters and gauges.
+	cacheSize.WithLabelValues(Success)
+	cacheSize.WithLabelValues(Denial)
+	cacheCapacity.WithLabelValues(Success).Set(float64(ca.pcap))
+	cacheCapacity.WithLabelValues(Denial).Set(float64(ca.ncap))
+	cacheHits.WithLabelValues(Success)
+	cacheHits.WithLabelValues(Denial)
 
 	return nil
 }

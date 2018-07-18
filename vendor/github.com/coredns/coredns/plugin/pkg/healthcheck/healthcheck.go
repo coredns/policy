@@ -3,14 +3,13 @@ package healthcheck
 import (
 	"io"
 	"io/ioutil"
+	"log"
 	"net"
 	"net/http"
 	"net/url"
 	"sync"
 	"sync/atomic"
 	"time"
-
-	"github.com/coredns/coredns/plugin/pkg/log"
 )
 
 // UpstreamHostDownFunc can be used to customize how Down behaves.
@@ -123,7 +122,7 @@ func (uh *UpstreamHost) HealthCheckURL() {
 	}()
 
 	if err != nil {
-		log.Warningf("Host %s health check probe failed: %v", uh.Name, err)
+		log.Printf("[WARNING] Host %s health check probe failed: %v", uh.Name, err)
 		atomic.AddInt32(&uh.Fails, 1)
 		return
 	}
@@ -133,7 +132,7 @@ func (uh *UpstreamHost) HealthCheckURL() {
 		r.Body.Close()
 
 		if r.StatusCode < 200 || r.StatusCode >= 400 {
-			log.Warningf("Host %s health check returned HTTP code %d", uh.Name, r.StatusCode)
+			log.Printf("[WARNING] Host %s health check returned HTTP code %d", uh.Name, r.StatusCode)
 			atomic.AddInt32(&uh.Fails, 1)
 			return
 		}

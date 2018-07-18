@@ -4,12 +4,12 @@ package cache
 import (
 	"encoding/binary"
 	"hash/fnv"
+	"log"
 	"time"
 
 	"github.com/coredns/coredns/plugin"
 	"github.com/coredns/coredns/plugin/pkg/cache"
 	"github.com/coredns/coredns/plugin/pkg/response"
-	"github.com/coredns/coredns/request"
 
 	"github.com/miekg/dns"
 )
@@ -102,8 +102,6 @@ func hash(qname string, qtype uint16, do bool) uint32 {
 type ResponseWriter struct {
 	dns.ResponseWriter
 	*Cache
-	state  request.Request
-	server string // Server handling the request.
 
 	prefetch bool // When true write nothing back to the client.
 }
@@ -130,14 +128,10 @@ func (w *ResponseWriter) WriteMsg(res *dns.Msg) error {
 	}
 
 	if key != -1 && duration > 0 {
-		if w.state.Match(res) {
-			w.set(res, key, mt, duration)
-			cacheSize.WithLabelValues(w.server, Success).Set(float64(w.pcache.Len()))
-			cacheSize.WithLabelValues(w.server, Denial).Set(float64(w.ncache.Len()))
-		} else {
-			// Don't log it, but increment counter
-			cacheDrops.WithLabelValues(w.server).Inc()
-		}
+		w.set(res, key, mt, duration)
+
+		cacheSize.WithLabelValues(Success).Set(float64(w.pcache.Len()))
+		cacheSize.WithLabelValues(Denial).Set(float64(w.ncache.Len()))
 	}
 
 	if w.prefetch {
@@ -177,13 +171,13 @@ func (w *ResponseWriter) set(m *dns.Msg, key int, mt response.Type, duration tim
 	case response.OtherError:
 		// don't cache these
 	default:
-		log.Warningf("Caching called with unknown classification: %d", mt)
+		log.Printf("[WARNING] Caching called with unknown classification: %d", mt)
 	}
 }
 
 // Write implements the dns.ResponseWriter interface.
 func (w *ResponseWriter) Write(buf []byte) (int, error) {
-	log.Warning("Caching called with Write: not caching reply")
+	log.Printf("[WARNING] Caching called with Write: not caching reply")
 	if w.prefetch {
 		return 0, nil
 	}

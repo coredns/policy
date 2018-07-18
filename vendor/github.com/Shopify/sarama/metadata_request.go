@@ -1,13 +1,12 @@
 package sarama
 
 type MetadataRequest struct {
-	Version                int16
-	Topics                 []string
-	AllowAutoTopicCreation bool
+	Version int16
+	Topics  []string
 }
 
 func (r *MetadataRequest) encode(pe packetEncoder) error {
-	if r.Version < 0 || r.Version > 5 {
+	if r.Version < 0 || r.Version > 1 {
 		return PacketEncodingError{"invalid or unsupported MetadataRequest version field"}
 	}
 	if r.Version == 0 || r.Topics != nil || len(r.Topics) > 0 {
@@ -24,9 +23,6 @@ func (r *MetadataRequest) encode(pe packetEncoder) error {
 		}
 	} else {
 		pe.putInt32(-1)
-	}
-	if r.Version > 3 {
-		pe.putBool(r.AllowAutoTopicCreation)
 	}
 	return nil
 }
@@ -53,15 +49,9 @@ func (r *MetadataRequest) decode(pd packetDecoder, version int16) error {
 			}
 			r.Topics[i] = topic
 		}
+		return nil
 	}
-	if r.Version > 3 {
-		autoCreation, err := pd.getBool()
-		if err != nil {
-			return err
-		}
-		r.AllowAutoTopicCreation = autoCreation
-	}
-	return nil
+
 }
 
 func (r *MetadataRequest) key() int16 {
@@ -76,12 +66,6 @@ func (r *MetadataRequest) requiredVersion() KafkaVersion {
 	switch r.Version {
 	case 1:
 		return V0_10_0_0
-	case 2:
-		return V0_10_1_0
-	case 3, 4:
-		return V0_11_0_0
-	case 5:
-		return V1_0_0_0
 	default:
 		return MinVersion
 	}

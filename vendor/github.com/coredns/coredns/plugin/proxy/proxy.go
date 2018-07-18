@@ -2,7 +2,6 @@
 package proxy
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	"net"
@@ -10,12 +9,12 @@ import (
 	"time"
 
 	"github.com/coredns/coredns/plugin"
-	"github.com/coredns/coredns/plugin/metrics"
 	"github.com/coredns/coredns/plugin/pkg/healthcheck"
 	"github.com/coredns/coredns/request"
 
 	"github.com/miekg/dns"
 	ot "github.com/opentracing/opentracing-go"
+	"golang.org/x/net/context"
 )
 
 var (
@@ -88,7 +87,7 @@ func (p Proxy) ServeDNS(ctx context.Context, w dns.ResponseWriter, r *dns.Msg) (
 
 			atomic.AddInt64(&host.Conns, 1)
 
-			RequestCount.WithLabelValues(metrics.WithServer(ctx), state.Proto(), upstream.Exchanger().Protocol(), familyToString(state.Family()), host.Name).Add(1)
+			RequestCount.WithLabelValues(state.Proto(), upstream.Exchanger().Protocol(), familyToString(state.Family()), host.Name).Add(1)
 
 			reply, backendErr = upstream.Exchanger().Exchange(ctx, host.Name, state)
 
@@ -101,17 +100,9 @@ func (p Proxy) ServeDNS(ctx context.Context, w dns.ResponseWriter, r *dns.Msg) (
 			taperr := toDnstap(ctx, host.Name, upstream.Exchanger(), state, reply, start)
 
 			if backendErr == nil {
-
-				// Check if the reply is correct; if not return FormErr.
-				if !state.Match(reply) {
-					formerr := state.ErrorMessage(dns.RcodeFormatError)
-					w.WriteMsg(formerr)
-					return 0, taperr
-				}
-
 				w.WriteMsg(reply)
 
-				RequestDuration.WithLabelValues(metrics.WithServer(ctx), state.Proto(), upstream.Exchanger().Protocol(), familyToString(state.Family()), host.Name).Observe(time.Since(start).Seconds())
+				RequestDuration.WithLabelValues(state.Proto(), upstream.Exchanger().Protocol(), familyToString(state.Family()), host.Name).Observe(time.Since(start).Seconds())
 
 				return 0, taperr
 			}

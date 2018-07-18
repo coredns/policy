@@ -5,36 +5,16 @@
 package forward
 
 import (
-	"context"
-	"io"
 	"strconv"
-	"sync/atomic"
 	"time"
 
 	"github.com/coredns/coredns/request"
 
 	"github.com/miekg/dns"
+	"golang.org/x/net/context"
 )
 
-func (p *Proxy) readTimeout() time.Duration {
-	rtt := time.Duration(atomic.LoadInt64(&p.avgRtt))
-
-	if rtt < minTimeout {
-		return minTimeout
-	}
-	if rtt < maxTimeout/2 {
-		return 2 * rtt
-	}
-	return maxTimeout
-}
-
-func (p *Proxy) updateRtt(newRtt time.Duration) {
-	rtt := time.Duration(atomic.LoadInt64(&p.avgRtt))
-	atomic.AddInt64(&p.avgRtt, int64((newRtt-rtt)/rttCount))
-}
-
-// Connect selects an upstream, sends the request and waits for a response.
-func (p *Proxy) Connect(ctx context.Context, state request.Request, forceTCP, metric bool) (*dns.Msg, error) {
+func (p *Proxy) connect(ctx context.Context, state request.Request, forceTCP, metric bool) (*dns.Msg, error) {
 	start := time.Now()
 
 	proto := state.Proto()
@@ -42,7 +22,7 @@ func (p *Proxy) Connect(ctx context.Context, state request.Request, forceTCP, me
 		proto = "tcp"
 	}
 
-	conn, cached, err := p.Dial(proto)
+	conn, err := p.Dial(proto)
 	if err != nil {
 		return nil, err
 	}
@@ -54,27 +34,17 @@ func (p *Proxy) Connect(ctx context.Context, state request.Request, forceTCP, me
 	}
 
 	conn.SetWriteDeadline(time.Now().Add(timeout))
-	reqTime := time.Now()
 	if err := conn.WriteMsg(state.Req); err != nil {
 		conn.Close() // not giving it back
-		if err == io.EOF && cached {
-			return nil, ErrCachedClosed
-		}
 		return nil, err
 	}
 
-	conn.SetReadDeadline(time.Now().Add(p.readTimeout()))
+	conn.SetReadDeadline(time.Now().Add(timeout))
 	ret, err := conn.ReadMsg()
 	if err != nil {
-		p.updateRtt(timeout)
 		conn.Close() // not giving it back
-		if err == io.EOF && cached {
-			return nil, ErrCachedClosed
-		}
-		return ret, err
+		return nil, err
 	}
-
-	p.updateRtt(time.Since(reqTime))
 
 	p.Yield(conn)
 
@@ -91,5 +61,3 @@ func (p *Proxy) Connect(ctx context.Context, state request.Request, forceTCP, me
 
 	return ret, nil
 }
-
-const rttCount = 4

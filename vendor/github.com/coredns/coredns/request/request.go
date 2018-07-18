@@ -23,7 +23,7 @@ type Request struct {
 
 	// Cache size after first call to Size or Do.
 	size int
-	do   *bool // nil: nothing, otherwise *do value
+	do   int // 0: not, 1: true: 2: false
 	// TODO(miek): opt record itself as well?
 
 	// Cache lowercase qname.
@@ -95,17 +95,19 @@ func (r *Request) Family() int {
 
 // Do returns if the request has the DO (DNSSEC OK) bit set.
 func (r *Request) Do() bool {
-	if r.do != nil {
-		return *r.do
+	if r.do != 0 {
+		return r.do == doTrue
 	}
-
-	r.do = new(bool)
 
 	if o := r.Req.IsEdns0(); o != nil {
-		*r.do = o.Do()
-		return *r.do
+		if o.Do() {
+			r.do = doTrue
+		} else {
+			r.do = doFalse
+		}
+		return o.Do()
 	}
-	*r.do = false
+	r.do = doFalse
 	return false
 }
 
@@ -121,13 +123,14 @@ func (r *Request) Size() int {
 
 	size := 0
 	if o := r.Req.IsEdns0(); o != nil {
-		if r.do == nil {
-			r.do = new(bool)
+		if o.Do() {
+			r.do = doTrue
+		} else {
+			r.do = doFalse
 		}
-		*r.do = o.Do()
 		size = int(o.UDPSize())
 	}
-
+	// TODO(miek) move edns.Size to dnsutil?
 	size = edns.Size(r.Proto(), size)
 	r.size = size
 	return size
@@ -164,6 +167,7 @@ func (r *Request) SizeAndDo(m *dns.Msg) bool {
 	if odo {
 		o.SetDo()
 	}
+
 	m.Extra = append(m.Extra, o)
 	return true
 }
@@ -180,36 +184,26 @@ const (
 	ScrubAnswer
 )
 
-// Scrub scrubs the reply message so that it will fit the client's buffer. It will first
-// check if the reply fits without compression and then *with* compression.
-// Scrub will then use binary search to find a save cut off point in the additional section.
+// Scrub scrubs the reply message so that it will fit the client's buffer. It sets
+// reply.Compress to true.
+// Scrub uses binary search to find a save cut off point in the additional section.
 // If even *without* the additional section the reply still doesn't fit we
 // repeat this process for the answer section. If we scrub the answer section
 // we set the TC bit on the reply; indicating the client should retry over TCP.
 // Note, the TC bit will be set regardless of protocol, even TCP message will
 // get the bit, the client should then retry with pigeons.
 func (r *Request) Scrub(reply *dns.Msg) (*dns.Msg, Result) {
-	size := r.Size()
-
-	reply.Compress = false
-	rl := reply.Len()
-	if size >= rl {
-		return reply, ScrubIgnored
-	}
-
 	reply.Compress = true
-	rl = reply.Len()
+
+	size := r.Size()
+	rl := reply.Len()
+
 	if size >= rl {
 		return reply, ScrubIgnored
 	}
 
-	// Account for the OPT record that gets added in SizeAndDo(), subtract that length.
-	sub := 0
-	if r.Do() {
-		sub = optLen
-	}
 	origExtra := reply.Extra
-	re := len(reply.Extra) - sub
+	re := len(reply.Extra)
 	l, m := 0, 0
 	for l < re {
 		m = (l + re) / 2
@@ -223,12 +217,9 @@ func (r *Request) Scrub(reply *dns.Msg) (*dns.Msg, Result) {
 			re = m - 1
 			continue
 		}
-		if rl == size {
-			break
-		}
 	}
-
-	// We may come out of this loop with one rotation too many, m makes it too large, but m-1 works.
+	// We may come out of this loop with one rotation too many as we don't break on rl == size.
+	// I.e. m makes it too large, but m-1 works.
 	if rl > size && m > 0 {
 		reply.Extra = origExtra[:m-1]
 		rl = reply.Len()
@@ -254,20 +245,17 @@ func (r *Request) Scrub(reply *dns.Msg) (*dns.Msg, Result) {
 			ra = m - 1
 			continue
 		}
-		if rl == size {
-			break
-		}
 	}
-
-	// We may come out of this loop with one rotation too many, m makes it too large, but m-1 works.
+	// We may come out of this loop with one rotation too many as we don't break on rl == size.
+	// I.e. m makes it too large, but m-1 works.
 	if rl > size && m > 0 {
 		reply.Answer = origAnswer[:m-1]
 		// No need to recalc length, as we don't use it. We set truncated anyway. Doing
 		// this extra m-1 step does make it fit in the client's buffer however.
 	}
 
-	// It now fits, but Truncated. We can't call sizeAndDo() because that adds a new record (OPT)
-	// in the additional section.
+	// It now fits, but Truncated.
+	r.SizeAndDo(reply)
 	reply.Truncated = true
 	return reply, ScrubAnswer
 }
@@ -373,26 +361,8 @@ func (r *Request) Clear() {
 	r.name = ""
 }
 
-// Match checks if the reply matches the qname and qtype from the request, it returns
-// false when they don't match.
-func (r *Request) Match(reply *dns.Msg) bool {
-	if len(reply.Question) != 1 {
-		return false
-	}
-
-	if reply.Response == false {
-		return false
-	}
-
-	if strings.ToLower(reply.Question[0].Name) != r.Name() {
-		return false
-	}
-
-	if reply.Question[0].Qtype != r.QType() {
-		return false
-	}
-
-	return true
-}
-
-const optLen = 12 // OPT record length.
+const (
+	// TODO(miek): make this less awkward.
+	doTrue  = 1
+	doFalse = 2
+)

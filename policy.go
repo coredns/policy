@@ -8,6 +8,15 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"github.com/coredns/coredns/plugin"
+	"github.com/coredns/coredns/plugin/pkg/nonwriter"
+	"github.com/coredns/coredns/plugin/pkg/trace"
+	pdp "github.com/infobloxopen/themis/pdp-service"
+	ps "github.com/infobloxopen/themis/pdpserver/server"
+	"github.com/infobloxopen/themis/pep"
+	"github.com/mholt/caddy"
+	"github.com/miekg/dns"
+	"golang.org/x/net/context"
 	"log"
 	"net"
 	"strconv"
@@ -15,16 +24,6 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
-
-	"github.com/coredns/coredns/plugin"
-	"github.com/coredns/coredns/plugin/pkg/nonwriter"
-	"github.com/coredns/coredns/plugin/pkg/trace"
-	"github.com/mholt/caddy"
-	"github.com/miekg/dns"
-	"golang.org/x/net/context"
-
-	pdp "github.com/infobloxopen/themis/pdp-service"
-	"github.com/infobloxopen/themis/pep"
 )
 
 const (
@@ -145,7 +144,7 @@ func (p *policyPlugin) connect() error {
 	}
 
 	if p.pdpSvr.policyFile != "" {
-		p.pdp = pep.NewIntegratedClient(p.pdpSvr.policyFile, p.pdpSvr.contentFiles)
+		p.pdp = pep.NewBuiltinClient(p.pdpSvr.policyFile, p.pdpSvr.contentFiles)
 	} else {
 		p.pdp = pep.NewClient(opts...)
 	}

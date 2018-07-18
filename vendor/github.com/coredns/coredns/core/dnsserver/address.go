@@ -36,8 +36,6 @@ func Transport(s string) string {
 		return TransportDNS
 	case strings.HasPrefix(s, TransportGRPC+"://"):
 		return TransportGRPC
-	case strings.HasPrefix(s, TransportHTTPS+"://"):
-		return TransportHTTPS
 	}
 	return TransportDNS
 }
@@ -60,9 +58,6 @@ func normalizeZone(str string) (zoneAddr, error) {
 	case strings.HasPrefix(str, TransportGRPC+"://"):
 		trans = TransportGRPC
 		str = str[len(TransportGRPC+"://"):]
-	case strings.HasPrefix(str, TransportHTTPS+"://"):
-		trans = TransportHTTPS
-		str = str[len(TransportHTTPS+"://"):]
 	}
 
 	host, port, ipnet, err := plugin.SplitHostPort(str)
@@ -79,9 +74,6 @@ func normalizeZone(str string) (zoneAddr, error) {
 		}
 		if trans == TransportGRPC {
 			port = GRPCPort
-		}
-		if trans == TransportHTTPS {
-			port = HTTPSPort
 		}
 	}
 
@@ -105,10 +97,9 @@ func SplitProtocolHostPort(address string) (protocol string, ip string, port str
 
 // Supported transports.
 const (
-	TransportDNS   = "dns"
-	TransportTLS   = "tls"
-	TransportGRPC  = "grpc"
-	TransportHTTPS = "https"
+	TransportDNS  = "dns"
+	TransportTLS  = "tls"
+	TransportGRPC = "grpc"
 )
 
 type zoneOverlap struct {

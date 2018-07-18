@@ -55,13 +55,20 @@ func setup(c *caddy.Controller) error {
 	})
 
 	c.OnStartup(func() error {
-		once.Do(func() { metrics.MustRegister(c, HealthDuration) })
+		onceMetric.Do(func() {
+			m := dnsserver.GetConfig(c).Handler("prometheus")
+			if m == nil {
+				return
+			}
+			if x, ok := m.(*metrics.Metrics); ok {
+				x.MustRegister(HealthDuration)
+			}
+		})
 		return nil
 	})
 
 	c.OnStartup(h.OnStartup)
-	c.OnRestart(h.OnRestart)
-	c.OnFinalShutdown(h.OnFinalShutdown)
+	c.OnFinalShutdown(h.OnShutdown)
 
 	// Don't do AddPlugin, as health is not *really* a plugin just a separate webserver running.
 	return nil

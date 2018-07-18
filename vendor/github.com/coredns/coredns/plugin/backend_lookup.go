@@ -14,7 +14,7 @@ import (
 
 // A returns A records from Backend or an error.
 func A(b ServiceBackend, zone string, state request.Request, previousRecords []dns.RR, opt Options) (records []dns.RR, err error) {
-	services, err := checkForApex(b, zone, state, opt)
+	services, err := b.Services(state, false, opt)
 	if err != nil {
 		return nil, err
 	}
@@ -78,7 +78,7 @@ func A(b ServiceBackend, zone string, state request.Request, previousRecords []d
 
 // AAAA returns AAAA records from Backend or an error.
 func AAAA(b ServiceBackend, zone string, state request.Request, previousRecords []dns.RR, opt Options) (records []dns.RR, err error) {
-	services, err := checkForApex(b, zone, state, opt)
+	services, err := b.Services(state, false, opt)
 	if err != nil {
 		return nil, err
 	}
@@ -383,7 +383,7 @@ func SOA(b ServiceBackend, zone string, state request.Request, opt Options) ([]d
 func BackendError(b ServiceBackend, zone string, rcode int, state request.Request, err error, opt Options) (int, error) {
 	m := new(dns.Msg)
 	m.SetRcode(state.Req, rcode)
-	m.Authoritative, m.RecursionAvailable = true, true
+	m.Authoritative, m.RecursionAvailable, m.Compress = true, true, true
 	m.Ns, _ = SOA(b, zone, state, opt)
 
 	state.SizeAndDo(m)
@@ -401,28 +401,6 @@ func newAddress(s msg.Service, name string, ip net.IP, what uint16) dns.RR {
 	}
 	// Should always be dns.TypeAAAA
 	return &dns.AAAA{Hdr: hdr, AAAA: ip}
-}
-
-// checkForApex checks the spcecial apex.dns directory for records that will be returned as A or AAAA.
-func checkForApex(b ServiceBackend, zone string, state request.Request, opt Options) ([]msg.Service, error) {
-	if state.Name() != zone {
-		return b.Services(state, false, opt)
-	}
-
-	// If the zone name itself is queried we fake the query to search for a special entry
-	// this is equivalent to the NS search code.
-	old := state.QName()
-	state.Clear()
-	state.Req.Question[0].Name = dnsutil.Join([]string{"apex.dns", zone})
-
-	services, err := b.Services(state, false, opt)
-	if err == nil {
-		state.Req.Question[0].Name = old
-		return services, err
-	}
-
-	state.Req.Question[0].Name = old
-	return b.Services(state, false, opt)
 }
 
 const hostmaster = "hostmaster"

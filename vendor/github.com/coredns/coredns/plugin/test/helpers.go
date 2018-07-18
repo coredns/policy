@@ -1,11 +1,11 @@
 package test
 
 import (
-	"context"
 	"sort"
 	"testing"
 
 	"github.com/miekg/dns"
+	"golang.org/x/net/context"
 )
 
 type sect int

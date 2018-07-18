@@ -3,6 +3,7 @@
 package pprof
 
 import (
+	"log"
 	"net"
 	"net/http"
 	pp "net/http/pprof"
@@ -17,7 +18,7 @@ type handler struct {
 func (h *handler) Startup() error {
 	ln, err := net.Listen("tcp", h.addr)
 	if err != nil {
-		log.Errorf("Failed to start pprof handler: %s", err)
+		log.Printf("[ERROR] Failed to start pprof handler: %s", err)
 		return err
 	}
 
