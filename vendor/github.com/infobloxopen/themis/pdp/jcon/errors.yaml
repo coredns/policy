@@ -1,0 +1,266 @@
+package: jcon
+
+import:
+- encoding/json
+- github.com/infobloxopen/themis/pdp
+
+errors:
+- id: externalError
+  fields:
+  - id: err
+    type: error
+  msg: "%s"
+  args:
+  - field: err
+
+- id: booleanCastError
+  fields:
+  - id: token
+    type: json.Token
+  - id: desc
+    type: string
+  msg: "Expected boolean as %s but got %T (%#v)"
+  args:
+  - field: desc
+  - field: token
+  - field: token
+
+- id: numberCastError
+  fields:
+  - id: token
+    type: json.Token
+  - id: desc
+    type: string
+  msg: "Expected number as %s but got %T (%#v)"
+  args:
+  - field: desc
+  - field: token
+  - field: token
+
+- id: integerOverflowError
+  fields:
+  - id: x
+    type: float64
+  msg: "%f overflows integer"
+  args:
+  - field: x
+
+- id: stringCastError
+  fields:
+  - id: token
+    type: json.Token
+  - id: desc
+    type: string
+  msg: "Expected string as %s but got %T (%#v)"
+  args:
+  - field: desc
+  - field: token
+  - field: token
+
+- id: addressCastError
+  fields:
+  - id: s
+    type: string
+  msg: "Can't treat %q as IP address"
+  args:
+  - field: s
+
+- id: networkCastError
+  fields:
+  - id: s
+    type: string
+  - id: err
+    type: error
+  msg: "Can't treat %q as IP network (%s)"
+  args:
+  - field: s
+  - field: err
+
+- id: domainCastError
+  fields:
+  - id: s
+    type: string
+  - id: err
+    type: error
+  msg: "Can't treat %q as domain name (%s)"
+  args:
+  - field: s
+  - field: err
+
+- id: addressNetworkCastError
+  fields:
+  - id: s
+    type: string
+  - id: err
+    type: error
+  msg: "Can't treat %q as IP address or network (%s)"
+  args:
+  - field: s
+  - field: err
+
+- id: unknownContentFieldError
+  fields:
+  - id: id
+    type: string
+  msg: "Unknown content field %q (expected id or items)"
+  args:
+  - field: id
+
+- id: unknownContentItemFieldError
+  fields:
+  - id: id
+    type: string
+  msg: "Unknown content item field %q (expected keys, type or data)"
+  args:
+  - field: id
+
+- id: unknownTypeError
+  fields:
+  - id: t
+    type: string
+  msg: "Unknown value type %q"
+  args:
+  - field: t
+
+- id: invalidContentItemTypeError
+  fields:
+  - id: t
+    type: pdp.Type
+  msg: "Can't set result type to %q type"
+  args:
+  - field: t
+
+- id: invalidContentKeyTypeError
+  fields:
+  - id: t
+    type: pdp.Type
+  - id: expected
+    type: pdp.TypeSet
+  msg: "Can't use %q type as a key in content item (expected %s)"
+  args:
+  - field: t
+  - field: expected
+
+- id: unknownFlagNameError
+  fields:
+  - id: name
+    type: string
+  msg: "Unknown flag name %q"
+  args:
+  - field: name
+
+- id: duplicateContentItemFieldError
+  fields:
+  - id: field
+    type: string
+  msg: "Duplicate content field %s"
+  args:
+  - field: field
+
+- id: missingMetaTypeNameError
+  msg: "Missing meta type name"
+
+- id: unknownMetaTypeError
+  fields:
+  - id: meta
+    type: string
+  msg: "Unknown meta type %q"
+  args:
+  - field: meta
+
+- id: missingFlagNameListError
+  msg: "Missing list of flag names"
+
+- id: newTypeOnUpdateError
+  msg: "New type declaration isn't allowed on update"
+
+- id: invalidTypeFormatError
+  fields:
+  - id: t
+    type: json.Token
+  msg: "Expected type name of flags type definition but got token %#v"
+  args:
+  - field: t
+
+- id: unknownTypeFieldError
+  fields:
+  - id: name
+    type: string
+  msg: "Unknown field %q in type definition"
+  args:
+  - field: name
+
+- id: missingContentDataError
+  msg: "Missing data"
+
+- id: missingContentTypeError
+  msg: "Missing result type"
+
+- id: invalidSequenceContentItemNodeError
+  fields:
+  - id: node
+    type: interface{}
+  - id: desc
+    type: string
+  msg: "Expected array or object for %s but got %T"
+  args:
+  - field: desc
+  - field: node
+
+- id: invalidMapContentItemNodeError
+  fields:
+  - id: node
+    type: interface{}
+  - id: desc
+    type: string
+  msg: "Expected object for %s but got %T"
+  args:
+  - field: desc
+  - field: node
+
+- id: unknownCommadFieldError
+  fields:
+  - id: cmd
+    type: string
+  msg: "Unknown field %s"
+  args:
+  - field: cmd
+
+- id: duplicateCommandFieldError
+  fields:
+  - id: field
+    type: string
+  msg: "Duplicate field %s"
+  args:
+  - field: field
+
+- id: missingCommandOpError
+  msg: "Missing operation"
+
+- id: missingCommandPathError
+  msg: "Missing path"
+
+- id: missingCommandEntityError
+  msg: "Missing entity"
+
+- id: unknownContentUpdateOperationError
+  fields:
+  - id: op
+    type: string
+  msg: "Unknown content update operation %q"
+  args:
+  - field: op
+
+- id: arrayEndDelimiterError
+  fields:
+  - id: actual
+    type: json.Delim
+  - id: expected
+    type: string
+  - id: desc
+    type: string
+  msg: "Expected %s JSON array end %q but got delimiter %q"
+  args:
+  - field: desc
+  - field: expected
+  - field: actual

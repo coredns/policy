@@ -1,0 +1,145 @@
+# Mapper example
+attributes:
+  p: string
+  d: domain
+  err: string
+
+policies:
+  alg:
+    id: Mapper
+    map:
+      attr: p
+    default: DenyPolicy
+    error: ErrorPolicy
+  policies:
+  - id: DenyPolicy
+    alg: FirstApplicableEffect
+    rules:
+    - effect: Deny
+  - id: ErrorPolicy
+    alg: FirstApplicableEffect
+    rules:
+    - effect: Deny
+    obligations:
+    - err:
+        val:
+          type: string
+          content: Can't calculate policy id
+  - id: First
+    alg:
+      id: Mapper
+      map:
+        selector:
+          uri: "local:content/domain-policies"
+          path:
+          - attr: d
+          type: list of strings
+      default: DenyRule
+      alg: FirstApplicableEffect
+    rules:
+    - id: DenyRule
+      effect: Deny
+      obligations:
+      - p:
+          val:
+            type: string
+            content: First Default Deny
+    - id: PermitNet
+      effect: Permit
+      obligations:
+      - p:
+          val:
+            type: string
+            content: First PermitNet
+    - id: DenyCom
+      effect: Deny
+      obligations:
+      - p:
+          val:
+            type: string
+            content: First DenyCom
+  - id: Second
+    alg:
+      id: Mapper
+      map:
+        selector:
+          uri: "local:content/domain-policies"
+          path:
+          - attr: d
+          type: list of strings
+      default: DenyRule
+      alg: FirstApplicableEffect
+    rules:
+    - id: DenyRule
+      effect: Deny
+      obligations:
+      - p:
+          val:
+            type: string
+            content: Second Default Deny
+    - id: DenyNet
+      effect: Deny
+      obligations:
+      - p:
+          val:
+            type: string
+            content: Second DenyNet
+    - id: PermitCom
+      effect: Permit
+      obligations:
+      - p:
+          val:
+            type: string
+            content: Second PermitCom
+  - id: External
+    alg:
+      id: Mapper
+      map:
+        val:
+          type: List Of Strings
+          content:
+          - Second
+          - First
+      alg: FirstApplicableEffect
+      order: External
+    rules:
+    - id: First
+      effect: Permit
+      obligations:
+      - p:
+          val:
+            type: string
+            content: External First
+    - id: Second
+      effect: Permit
+      obligations:
+      - p:
+          val:
+            type: string
+            content: External Second
+  - id: Internal
+    alg:
+      id: Mapper
+      map:
+        val:
+          type: List Of Strings
+          content:
+          - Second
+          - First
+      alg: FirstApplicableEffect
+      order: Internal
+    rules:
+    - id: First
+      effect: Permit
+      obligations:
+      - p:
+          val:
+            type: string
+            content: Internal First
+    - id: Second
+      effect: Permit
+      obligations:
+      - p:
+          val:
+            type: string
+            content: Internal Second

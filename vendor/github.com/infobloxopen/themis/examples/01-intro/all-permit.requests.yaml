@@ -1,0 +1,27 @@
+attributes:
+  b: boolean
+  s: string
+  a: address
+  d: domain
+  c: network
+
+requests:
+# Empty request
+- {}
+
+# Request with boolean attribute "b" and "true" value (note that "True" here
+# encoded as YAML string because pepcli doesn't make any type conversion and
+# just passes what it gets)
+- b: "True"
+
+# Request with string attribute "s" and value "test"
+- s: test
+
+# Request with address attribute
+- a: 192.0.2.1
+
+# Request with domain attribute
+- d: example.com
+
+# Request with network attrubute
+- c: 192.0.2.0/24

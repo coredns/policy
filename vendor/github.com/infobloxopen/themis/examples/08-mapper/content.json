@@ -1,0 +1,13 @@
+{
+  "id": "content",
+  "items": {
+    "domain-policies": {
+      "keys": ["domain"],
+      "type": "list of strings",
+      "data": {
+        "example.com": ["PermitCom", "DenyCom"],
+        "example.net": ["PermitNet", "DenyNet"]
+      }
+    }
+  }
+}

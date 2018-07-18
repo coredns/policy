@@ -1,0 +1,13 @@
+attributes:
+  actualVal: float
+  targetVal: float
+
+requests:
+- actualVal: 5.0
+  targetVal: 5.0
+
+- actualVal: 100.0
+  targetVal: 5.0
+
+- actualVal: 16.0
+  targetVal: 5.0

@@ -1,0 +1,22 @@
+[
+  {
+    "op": "delete",
+    "path": ["domain", "example.red"]
+  },
+  {
+    "op": "add",
+    "path": ["domain", "example.red"],
+    "entity": {
+      "type": "tags",
+      "data": ["yellow", "indigo"]
+    }
+  },
+  {
+    "op": "add",
+    "path": ["domain", "test.red"],
+    "entity": {
+      "type": "tags",
+      "data": ["red"]
+    }
+  }
+]

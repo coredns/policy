@@ -1,0 +1,112 @@
+# Target examples
+attributes:
+  r: string
+  x: string
+  a: address
+  c: network
+
+policies:
+  alg: FirstApplicableEffect
+  rules:
+  # ((x == test and c contains address(192.0.2.1)) or
+  #  x == example) and
+  # (network(192.0.2.0/28) contains a or network(192.0.2.16/28) contains a)
+  - target:
+    - any:
+      - all:
+        - equal:
+          - attr: x
+          - val:
+              type: string
+              content: "test"
+        - contains:
+          - attr: c
+          - val:
+              type: address
+              content: 192.0.2.1
+      - equal:
+        - attr: x
+        - val:
+            type: string
+            content: "example"
+    - any:
+      - contains:
+        - val:
+            type: network
+            content: 192.0.2.0/28
+        - attr: a
+      - contains:
+        - val:
+            type: network
+            content: 192.0.2.16/28
+        - attr: a
+    effect: Permit
+    obligations:
+    - r:
+        val:
+          type: string
+          content: first
+
+  # (x == test or x == example) and (network(192.0.2.0/28) contains a or network(192.0.2.16/28) contains a)
+  - target:
+    - any:
+      - equal:
+        - attr: x
+        - val:
+            type: string
+            content: "test"
+      - equal:
+        - attr: x
+        - val:
+            type: string
+            content: "example"
+    - any:
+      - contains:
+        - val:
+            type: network
+            content: 192.0.2.0/28
+        - attr: a
+      - contains:
+        - val:
+            type: network
+            content: 192.0.2.16/28
+        - attr: a
+    effect: Permit
+    obligations:
+    - r:
+        val:
+          type: string
+          content: second
+
+  # x == test and network(192.0.2.0/24) contains a
+  - target:
+    - equal:
+      - attr: x
+      - val:
+          type: string
+          content: "test"
+    - contains:
+      - val:
+          type: network
+          content: 192.0.2.0/24
+      - attr: a
+    effect: Permit
+    obligations:
+    - r:
+        val:
+          type: string
+          content: third
+
+  # x == test
+  - target:
+    - equal:
+      - attr: x
+      - val:
+          type: string
+          content: "test"
+    effect: Permit
+    obligations:
+    - r:
+        val:
+          type: string
+          content: fourth

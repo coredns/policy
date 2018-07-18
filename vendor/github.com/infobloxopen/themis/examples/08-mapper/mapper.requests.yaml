@@ -1,0 +1,32 @@
+attributes:
+  p: string
+  d: domain
+
+requests:
+# Denied by default policy
+- p: Unknown
+
+# Denied by error policy (as attribute "p" is missing)
+- d: example.com
+
+# First policy permits net
+- p: First
+  d: example.net
+
+# First policy denies com
+- p: First
+  d: example.com
+
+# Second policy permits com
+- p: Second
+  d: example.com
+
+# Second policy denies net
+- p: Second
+  d: example.net
+
+# External policy permits by second rule
+- p: External
+
+# External policy permits by second rule
+- p: Internal

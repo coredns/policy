@@ -1,0 +1,12 @@
+syntax = "proto3";
+
+package service;
+
+service PDP {
+  rpc Validate (Msg) returns (Msg) {}
+  rpc NewValidationStream (stream Msg) returns (stream Msg) {}
+}
+
+message Msg {
+  bytes body = 1;
+}

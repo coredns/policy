@@ -1,0 +1,32 @@
+# Rule with all its fields
+attributes:
+  x: string
+  a: address
+  c: network
+  b: boolean
+
+policies:
+  alg: FirstApplicableEffect
+  rules:
+  - id: "Test Policy"
+    target: # x == "test"
+    - equal:
+      - attr: x
+      - val:
+          type: string
+          content: "test"
+    condition: # not (c contains 192.0.2.1 or b)
+      not:
+      - or:
+        - contains:
+          - attr: c
+          - val:
+              type: address
+              content: "192.0.2.1"
+        - attr: b
+    effect: Permit
+    obligations:
+    - a:
+        val:
+          type: "address"
+          content: "192.0.2.1"

@@ -1,0 +1,20 @@
+attributes:
+  d: domain
+  a: address
+
+requests:
+# Good example.com
+- d: example.com
+  a: 192.0.2.18
+
+# Bad example.com
+- d: example.com
+  a: 2001:db8:1000::1
+
+# Good test.com
+- d: test.com
+  a: 192.0.2.50
+
+# Bad test.com
+- d: test.com
+  a: 2001:db8:3000::1

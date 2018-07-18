@@ -1,0 +1,11 @@
+language: go
+
+go:
+  - "1.9"
+  - "1.10"
+
+script:
+  - make
+
+after_success:
+  - bash <(curl -s https://codecov.io/bash)

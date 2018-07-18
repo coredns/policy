@@ -1,0 +1,43 @@
+# Selector example
+attributes:
+  d: domain
+  a: address
+  s: string
+
+policies:
+  alg: FirstApplicableEffect
+  rules:
+  - condition:
+      contains:
+      - selector:
+          uri: "local:content/domain-addresses"
+          path:
+          - val:
+              type: string
+              content: good
+          - attr: d
+          type: set of networks
+      - attr: a
+    effect: Permit
+    obligations:
+    - s:
+        val:
+          type: string
+          content: Good
+  - condition:
+      contains:
+      - selector:
+          uri: "local:content/domain-addresses"
+          path:
+          - val:
+              type: string
+              content: bad
+          - attr: d
+          type: set of networks
+      - attr: a
+    effect: Deny
+    obligations:
+    - s:
+        val:
+          type: string
+          content: Bad

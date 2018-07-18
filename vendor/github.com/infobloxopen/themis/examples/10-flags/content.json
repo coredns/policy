@@ -1,0 +1,30 @@
+{
+  "id": "content",
+  "items": {
+    "domain": {
+      "keys": ["domain"],
+      "type": {
+        "name": "tags",
+        "meta": "flags",
+        "flags": [
+          "red",
+          "orange",
+          "yellow",
+          "green",
+          "blue",
+          "indigo",
+          "violet"
+        ]
+      },
+      "data": {
+        "example.red": ["yellow", "indigo", "red"],
+        "example.orange": ["green", "blue", "orange"],
+        "example.yellow": ["green", "yellow", "violet"],
+        "example.green": ["blue", "green", "violet"],
+        "example.blue": ["indigo", "blue", "violet"],
+        "example.indigo": ["violet", "indigo"],
+        "example.violet": ["violet"]
+      }
+    }
+  }
+}

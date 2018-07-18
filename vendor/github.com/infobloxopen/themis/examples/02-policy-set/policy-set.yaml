@@ -1,0 +1,35 @@
+# Policy set with all its fields
+attributes:
+  x: string
+  a: address
+  z: string
+
+policies:
+  id: "Test Policy Set"
+  target: # x == "test"
+  - equal:
+    - attr: x
+    - val:
+        type: string
+        content: "test"
+  alg: FirstApplicableEffect
+  policies:
+  - alg: FirstApplicableEffect
+    target:
+    - equal: # z == "example"
+      - attr: z
+      - val:
+          type: string
+          content: "example"
+    policies:
+    - alg: FirstApplicableEffect
+      rules:
+      - effect: Permit
+  - alg: FirstApplicableEffect
+    rules:
+    - effect: Deny
+  obligations:
+  - a:
+      val:
+        type: "address"
+        content: "192.0.2.1"

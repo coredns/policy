@@ -1,0 +1,6 @@
+attributes:
+  d: domain
+
+requests:
+- d: "example.red"
+- d: "test.red"

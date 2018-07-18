@@ -1,0 +1,30 @@
+attributes:
+  x: string
+  a: address
+  c: network
+
+requests:
+# Permitted by first target
+- x: test
+  c: 192.0.2.0/24
+  a: 192.0.2.1
+
+# Permitted by second target
+- x: test
+  c: 192.0.2.32/28
+  a: 192.0.2.17
+
+# Permitted by third target
+- x: test
+  c: 192.0.2.32/28
+  a: 192.0.2.33
+
+# Permitted by fourth target
+- x: test
+  c: 192.0.2.32/28
+  a: 192.0.3.1
+
+# Not applicable
+- x: example
+  c: 192.0.2.32/28
+  a: 192.0.3.1

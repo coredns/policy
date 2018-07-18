@@ -1,0 +1,9 @@
+attributes:
+  x: string
+
+requests:
+# Request to permit
+- x: test
+
+# Not applicable request
+- x: example

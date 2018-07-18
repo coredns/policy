@@ -1,0 +1,14 @@
+# Permit if x is "test" otherwise Not Applicable
+attributes:
+  x: string
+
+policies:
+  alg: FirstApplicableEffect
+  target:
+  - equal:
+    - attr: x
+    - val:
+        type: string
+        content: "test"
+  rules:
+  - effect: Permit

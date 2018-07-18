@@ -1,0 +1,42 @@
+attributes:
+  targetVal: float
+  actualVal: float
+  r: float
+
+policies:
+  alg:
+    id: Mapper
+    map:
+      range:
+        - val:
+            type: float
+            content: 2.0
+        - val:
+            type: float
+            content: 10.0
+        - divide:
+          - attr: actualVal
+          - attr: targetVal
+    alg: FirstApplicableEffect
+  rules:
+  - id: Below
+    effect: Permit
+    obligations:
+      - r:
+         val:
+           type: float
+           content: 2.0
+  - id: Above
+    effect: Permit
+    obligations:
+      - r:
+         val:
+           type: float
+           content: 10.0
+  - id: Within
+    effect: Permit
+    obligations:
+      - r:
+         divide:
+           - attr: actualVal
+           - attr: targetVal

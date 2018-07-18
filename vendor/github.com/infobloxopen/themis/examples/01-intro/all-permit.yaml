@@ -1,0 +1,5 @@
+# All permit policy (without "attributes" section)
+policies:
+  alg: FirstApplicableEffect
+  rules:
+  - effect: Permit

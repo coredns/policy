@@ -1,0 +1,19 @@
+{
+  "id": "content",
+  "items": {
+    "domain-addresses": {
+      "keys": ["string", "domain"],
+      "type": "set of networks",
+      "data": {
+        "good": {
+          "example.com": ["192.0.2.16/28", "192.0.2.32/28"],
+          "test.com": ["192.0.2.48/28", "192.0.2.64/28"]
+        },
+        "bad": {
+          "example.com": ["2001:db8:1000::/40", "2001:db8:2000::/40"],
+          "test.com": ["2001:db8:3000::/40", "2001:db8:4000::/40"]
+        }
+      }
+    }
+  }
+}

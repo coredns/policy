@@ -1,0 +1,14 @@
+attributes:
+  func: string
+  x: string
+
+requests:
+# Try with x string
+- func: try
+  x: test
+
+# Try with no x string
+- func: try
+
+# Concat
+- func: concat

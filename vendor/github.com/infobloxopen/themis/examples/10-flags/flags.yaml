@@ -1,0 +1,136 @@
+types:
+  tags:
+    meta: flags
+    flags:
+    - red
+    - orange
+    - yellow
+    - green
+    - blue
+    - indigo
+    - violet
+
+attributes:
+  d: domain
+  r: string
+  t: list of strings
+
+policies:
+  alg:
+    id: Mapper
+    map:
+      selector:
+        uri: "local:content/domain"
+        path:
+        - attr: d
+        type: tags
+    alg: FirstApplicableEffect
+    default: default
+  rules:
+  - id: default
+    effect: Deny
+
+  - id: red
+    effect: Permit
+    obligations:
+    - r:
+        val:
+          type: string
+          content: red
+    - t:
+        list of strings:
+        - selector:
+            uri: "local:content/domain"
+            path:
+            - attr: d
+            type: tags
+
+  - id: orange
+    effect: Permit
+    obligations:
+    - r:
+        val:
+          type: string
+          content: orange
+    - t:
+        list of strings:
+        - selector:
+            uri: "local:content/domain"
+            path:
+            - attr: d
+            type: tags
+
+  - id: yellow
+    effect: Permit
+    obligations:
+    - r:
+        val:
+          type: string
+          content: yellow
+    - t:
+        list of strings:
+        - selector:
+            uri: "local:content/domain"
+            path:
+            - attr: d
+            type: tags
+
+  - id: green
+    effect: Permit
+    obligations:
+    - r:
+        val:
+          type: string
+          content: green
+    - t:
+        list of strings:
+        - selector:
+            uri: "local:content/domain"
+            path:
+            - attr: d
+            type: tags
+
+  - id: blue
+    effect: Permit
+    obligations:
+    - r:
+        val:
+          type: string
+          content: blue
+    - t:
+        list of strings:
+        - selector:
+            uri: "local:content/domain"
+            path:
+            - attr: d
+            type: tags
+
+  - id: indigo
+    effect: Permit
+    obligations:
+    - r:
+        val:
+          type: string
+          content: indigo
+    - t:
+        list of strings:
+        - selector:
+            uri: "local:content/domain"
+            path:
+            - attr: d
+            type: tags
+
+  - id: violet
+    effect: Permit
+    obligations:
+    - r:
+        val:
+          type: string
+          content: violet
+    - t:
+        list of strings:
+        - selector:
+            uri: "local:content/domain"
+            path:
+            - attr: d
+            type: tags

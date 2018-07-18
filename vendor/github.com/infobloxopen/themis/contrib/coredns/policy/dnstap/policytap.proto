@@ -1,0 +1,22 @@
+syntax = "proto3";
+
+package dnstap;
+
+// PolicyAction defines available policy action type
+enum PolicyAction {
+    INVALID = 0;
+    DENY = 1;
+    PASSTHROUGH = 2;
+    NXDOMAIN = 3;
+    REDIRECT = 4;
+    REFUSE = 5;
+}
+
+message DnstapAttribute {
+    string id = 1;
+    string value = 2;
+}
+
+message Extra {
+    repeated DnstapAttribute attrs = 1;
+}

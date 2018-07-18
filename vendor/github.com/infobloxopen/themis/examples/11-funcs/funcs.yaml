@@ -1,0 +1,48 @@
+attributes:
+  func: string
+  r: string
+  x: string
+  ls: list of strings
+
+policies:
+  alg: FirstApplicableEffect
+  rules:
+  - id: Try
+    target:
+    - equal:
+      - attr: func
+      - val:
+          type: string
+          content: try
+    effect: Permit
+    obligations:
+    - r:
+        try:
+        - attr: x
+        - val:
+            type: string
+            content: default
+
+  - id: Concat
+    target:
+    - equal:
+      - attr: func
+      - val:
+          type: string
+          content: concat
+    effect: Permit
+    obligations:
+    - ls:
+        concat:
+        - val:
+            type: list of strings
+            content:
+            - one
+            - two
+            - three
+        - val:
+            type: set of strings
+            content:
+            - first
+            - second
+            - third 

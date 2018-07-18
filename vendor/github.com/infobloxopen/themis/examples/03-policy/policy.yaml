@@ -1,0 +1,21 @@
+# Policy with all its fields
+attributes:
+  x: string
+  a: address
+
+policies:
+  id: "Test Policy"
+  target: # x == "test"
+  - equal:
+    - attr: x
+    - val:
+        type: string
+        content: "test"
+  alg: FirstApplicableEffect
+  rules:
+  - effect: Permit
+  obligations:
+  - a:
+      val:
+        type: "address"
+        content: "192.0.2.1"

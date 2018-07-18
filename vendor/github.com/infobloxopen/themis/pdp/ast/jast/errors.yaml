@@ -1,0 +1,381 @@
+package: jast
+
+import:
+- encoding/json
+- fmt
+- strconv
+- strings
+- "github.com/infobloxopen/themis/pdp"
+
+errors:
+- id: externalError
+  fields:
+  - id: err
+    type: error
+  msg: "%s"
+  args:
+  - field: err
+
+- id: policyAmbiguityError
+  msg: "Expected rules (for policy) or policies (for policy set) but got both"
+
+- id: policyMissingKeyError
+  msg: "Expected rules (for policy) or policies (for policy set) but got nothing"
+
+- id: unknownRCAError
+  fields:
+  - id: alg
+    type: string
+  msg: "Unknown rule combinig algorithm \"%s\""
+  args:
+  - field: alg
+
+- id: missingRCAError
+  msg: "Missing policy combinig algorithm"
+
+- id: parseCAError
+  fields:
+  - id: token
+    type: json.Token
+  msg: "Expected string or { object delimiter for combinig algorithm but got %T (%#v)"
+  args:
+  - field: token
+  - field: token
+
+- id: invalidRCAError
+  fields:
+  - id: v
+    type: interface{}
+  msg: "Expected string or *caParams as policy combinig algorithm but got %T"
+  args:
+  - field: v
+
+- id: missingDefaultRuleRCAError
+  fields:
+  - id: ID
+    type: string
+  msg: "No rule with ID %q to use as default rule"
+  args:
+  - field: ID
+
+- id: missingErrorRuleRCAError
+  fields:
+  - id: ID
+    type: string
+  msg: "No rule with ID %q to use as on error rule"
+  args:
+  - field: ID
+
+- id: notImplementedRCAError
+  fields:
+  - id: ID
+    type: string
+  msg: "Parsing for %q rule combinig algorithm hasn't been implemented yet"
+  args:
+  - field: ID
+
+- id: unknownPCAError
+  fields:
+  - id: alg
+    type: string
+  msg: "Unknown policy combinig algorithm \"%s\""
+  args:
+  - field: alg
+
+- id: missingPCAError
+  msg: "Missing policy combinig algorithm"
+
+- id: invalidPCAError
+  fields:
+  - id: v
+    type: interface{}
+  msg: "Expected string or *caParams as policy combinig algorithm but got %T"
+  args:
+  - field: v
+
+- id: missingDefaultPolicyPCAError
+  fields:
+  - id: ID
+    type: string
+  msg: "No policy with ID %q to use as default policy"
+  args:
+  - field: ID
+
+- id: missingErrorPolicyPCAError
+  fields:
+  - id: ID
+    type: string
+  msg: "No policy with ID %q to use as on error policy"
+  args:
+  - field: ID
+
+- id: notImplementedPCAError
+  fields:
+  - id: ID
+    type: string
+  msg: "Parsing for %q policy combinig algorithm hasn't been implemented yet"
+  args:
+  - field: ID
+
+- id: mapperArgumentTypeError
+  fields:
+  - id: actual
+    type: pdp.Type
+  msg: "Expected %q, %q, %q or flags as argument but got %q"
+  args:
+  - expr: pdp.TypeString
+  - expr: pdp.TypeSetOfStrings
+  - expr: pdp.TypeListOfStrings
+  - field: actual
+
+- id: conditionTypeError
+  fields:
+  - id: t
+    type: pdp.Type
+  msg: "Expected %q as condition expression result but got %q"
+  args:
+  - expr: pdp.TypeBoolean
+  - field: t
+
+- id: unknownEffectError
+  fields:
+  - id: e
+    type: string
+  msg: "Unknown rule effect %q"
+  args:
+  - field: e
+
+- id: unknownMatchFunctionError
+  fields:
+  - id: ID
+    type: string
+  msg: "Unknown match function %q"
+  args:
+  - field: ID
+
+- id: matchFunctionCastError
+  fields:
+  - id: ID
+    type: string
+  - id: first
+    type: pdp.Type
+  - id: second
+    type: pdp.Type
+  msg: "No function %q for arguments %q and %q"
+  args:
+  - field: ID
+  - field: first
+  - field: second
+
+- id: matchFunctionArgsNumberError
+  fields:
+  - id: n
+    type: int
+  msg: "Expected two arguments got %d"
+  args:
+  - field: n
+
+- id: invalidMatchFunctionArgError
+  fields:
+  - id: expr
+    type: pdp.Expression
+  msg: "Expected one immediate value and one attribute got %T"
+  args:
+  - field: expr
+
+- id: matchFunctionBothValuesError
+  msg: "Expected one immediate value and one attribute got both immediate values"
+
+- id: matchFunctionBothAttrsError
+  msg: "Expected one immediate value and one attribute got both immediate values"
+
+- id: unknownFunctionError
+  fields:
+  - id: ID
+    type: string
+  msg: "Unknown function %q"
+  args:
+  - field: ID
+
+- id: functionCastError
+  fields:
+  - id: ID
+    type: string
+  - id: exprs
+    type: "[]pdp.Expression"
+  msg: "Can't find function %s which takes %s"
+  args:
+  - field: ID
+  - snippet:
+      result: args
+      code: |
+        args := ""
+        if len(e.exprs) > 1 {
+          t := make([]string, len(e.exprs))
+          for i, e := range e.exprs {
+            t[i] = strconv.Quote(e.GetResultType().String())
+          }
+          args = fmt.Sprintf("%d arguments of following types %q", len(e.exprs), strings.Join(t, ", "))
+        } else if len(e.exprs) > 0 {
+          args = fmt.Sprintf("argument of type %q", e.exprs[0].GetResultType())
+        } else {
+                args = "no arguments"
+        }
+
+- id: unknownAttributeError
+  fields:
+  - id: ID
+    type: string
+  msg: "Unknown attribute %q"
+  args:
+  - field: ID
+
+- id: missingAttributeError
+  fields:
+  - id: attr
+    type: string
+  - id: obj
+    type: string
+  msg: "Missing %q attribute %q"
+  args:
+  - field: obj
+  - field: attr
+
+- id: unknownMapperCAOrder
+  fields:
+  - id: ord
+    type: string
+  msg: "Unknown ordering for mapper \"%s\""
+  args:
+  - field: ord
+
+- id: unknownTypeError
+  fields:
+  - id: t
+    type: string
+  msg: "Unknown value type %q"
+  args:
+  - field: t
+
+- id: invalidTypeError
+  fields:
+  - id: t
+    type: pdp.Type
+  msg: "Can't make value of %q type"
+  args:
+  - field: t
+
+- id: missingContentError
+  msg: "Missing value content"
+
+- id: notImplementedValueTypeError
+  fields:
+  - id: t
+    type: pdp.Type
+  msg: "Parsing for type %s hasn't been implemented yet"
+  args:
+  - field: t
+
+- id: invalidAddressError
+  fields:
+  - id: s
+    type: string
+  msg: "Expected value of address type but got %q"
+  args:
+  - field: s
+
+- id: integerOverflowError
+  fields:
+  - id: x
+    type: float64
+  msg: "%f overflows integer"
+  args:
+  - field: x
+
+- id: invalidNetworkError
+  fields:
+  - id: s
+    type: string
+  - id: err
+    type: error
+  msg: "Expected value of network type but got %q (%v)"
+  args:
+  - field: s
+  - field: err
+
+- id: invalidDomainError
+  fields:
+  - id: s
+    type: string
+  - id: err
+    type: error
+  msg: "Expected value of domain type but got %q (%v)"
+  args:
+  - field: s
+  - field: err
+
+- id: selectorURIError
+  fields:
+  - id: uri
+    type: string
+  - id: err
+    type: error
+  msg: "Expected seletor URI but got %q (%s)"
+  args:
+  - field: uri
+  - field: err
+
+- id: entityAmbiguityError
+  fields:
+  - id: fields
+    type: "[]string"
+  msg: "Expected rules (for policy), policies (for policy set) or effect (for rule) but got %s"
+  args:
+  - expr: strings.Join(e.fields, ", ")
+
+- id: entityMissingKeyError
+  msg: "Expected rules (for policy), policies (for policy set) or effect (for rule) but got nothing"
+
+- id: unknownPolicyUpdateOperationError
+  fields:
+  - id: op
+    type: string
+  msg: "Unknown policy update operation %q"
+  args:
+  - field: op
+
+- id: missingContentTypeError
+  msg: "Value 'type' attribute is missing or placed after 'content' attribute"
+
+- id: unknownFieldError
+  fields:
+  - id: name
+    type: string
+  msg: "Unknown field %q"
+  args:
+  - field: name
+
+- id: missingMetaTypeNameError
+  msg: "Missing meta type name"
+
+- id: unknownMetaTypeError
+  fields:
+  - id: meta
+    type: string
+  msg: "Unknown meta type %q"
+  args:
+  - field: meta
+
+- id: missingFlagNameListError
+  msg: "Missing list of flag names"
+
+- id: unknownFlagNameError
+  fields:
+  - id: name
+    type: string
+  - id: t
+    type: "*pdp.FlagsType"
+  msg: "Type %q doesn't have flag %q"
+  args:
+  - field: t
+  - field: name

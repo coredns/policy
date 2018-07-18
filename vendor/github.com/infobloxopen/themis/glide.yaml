@@ -1,0 +1,42 @@
+package: github.com/infobloxopen/themis
+import:
+- package: github.com/sirupsen/logrus
+- package: github.com/coredns/coredns
+  subpackages:
+  - core/dnsserver
+  - plugin
+  - request
+- package: github.com/golang/protobuf
+  subpackages:
+  - proto
+- package: github.com/apache/thrift
+- package: github.com/gogo/protobuf
+  subpackages:
+  - proto
+- package: github.com/grpc-ecosystem/grpc-opentracing
+  subpackages:
+  - go/otgrpc
+- package: github.com/mholt/caddy
+- package: github.com/miekg/dns
+  subpackages:
+  - internal/socket
+- package: github.com/opentracing/opentracing-go
+- package: github.com/openzipkin/zipkin-go-opentracing
+- package: golang.org/x/net
+  subpackages:
+  - context
+  - idna
+- package: golang.org/x/text
+  subpackages:
+  - unicode/norm
+- package: google.golang.org/grpc
+  subpackages:
+  - naming
+- package: gopkg.in/yaml.v2
+- package: github.com/google/uuid
+- package: github.com/infobloxopen/go-trees
+  subpackages:
+  - domaintree
+  - strtree
+  - iptree
+- package: github.com/dnstap/golang-dnstap

@@ -1,0 +1,43 @@
+syntax = "proto3";
+
+package control;
+
+service PDPControl {
+  rpc Request (Item) returns (Response) {}
+  rpc Upload (stream Chunk) returns (Response) {}
+  rpc Apply (Update) returns (Response) {}
+  rpc NotifyReady (Empty) returns (Response) {}
+}
+
+message Item {
+  enum DataType {
+    POLICIES = 0;
+    CONTENT = 1;
+  }
+  DataType type = 1;
+  string fromTag = 2;
+  string toTag = 3;
+  string id = 4;
+}
+
+message Chunk {
+  int32 id = 1;
+  string data = 2;
+}
+
+message Update {
+  int32 id = 1;
+}
+
+message Response {
+  enum Status {
+    ACK = 0;
+    ERROR = 1;
+    TAG_ERROR = 2;
+  }
+  Status status = 1;
+  int32 id = 2;
+  string details = 3;
+}
+
+message Empty {}

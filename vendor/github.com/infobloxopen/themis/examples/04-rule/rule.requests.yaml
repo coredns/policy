@@ -1,0 +1,24 @@
+attributes:
+  x: string
+  c: network
+  b: boolean
+
+requests:
+# Permitted request
+- x: test
+  c: 192.0.2.16/28
+  b: "F"
+
+# Not applicable because of b
+- x: test
+  c: 192.0.2.16/28
+  b: "1"
+
+# Not applicable because of c
+- x: test
+  c: 192.0.2.0/24
+  b: "false"
+
+# Not applicable because of x (no need to have condition related attributes
+# because condition isn't calculated if target doesn't match)
+- x: example

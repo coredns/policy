@@ -1,0 +1,12 @@
+attributes:
+  d: domain
+
+requests:
+- d: "example.red"
+- d: "example.orange"
+- d: "example.yellow"
+- d: "example.green"
+- d: "example.blue"
+- d: "example.indigo"
+- d: "example.violet"
+- d: "example.black"

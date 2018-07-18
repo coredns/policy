@@ -1,0 +1,19 @@
+attributes:
+  x: string
+  z: string
+
+requests:
+# Permitted request
+- x: test
+  z: example
+
+# Denied request
+- x: test
+  z: test
+
+# Not applicable request
+- x: example
+  z: test
+
+# Request which leads to Indeterminate response as "z" attribute is missing
+- x: test
