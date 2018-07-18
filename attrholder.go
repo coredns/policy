@@ -1,222 +1,325 @@
 package policy
 
 import (
+	"fmt"
 	"log"
+	"net"
 	"strconv"
-	"strings"
 
-	pb "github.com/coredns/policy/dnstap"
-	pdp "github.com/infobloxopen/themis/pdp-service"
+	"github.com/infobloxopen/go-trees/domain"
+	pb "github.com/infobloxopen/themis/contrib/coredns/policy/dnstap"
+	"github.com/miekg/dns"
+
+	"github.com/infobloxopen/themis/pdp"
 )
 
-var actionConvDnstap [actCount]string
+const (
+	actionInvalid = iota
+	actionRefuse
+	actionAllow
+	actionRedirect
+	actionBlock
+	actionLog
+	actionDrop
 
-func init() {
-	actionConvDnstap[typeInvalid] = "0"  // pb.PolicyAction_INVALID
-	actionConvDnstap[typeRefuse] = "5"   // pb.PolicyAction_REFUSE
-	actionConvDnstap[typeAllow] = "2"    // pb.PolicyAction_PASSTHROUGH
-	actionConvDnstap[typeRedirect] = "4" // pb.PolicyAction_REDIRECT
-	actionConvDnstap[typeBlock] = "3"    // pb.PolicyAction_NXDOMAIN
-	actionConvDnstap[typeLog] = "2"      // pb.PolicyAction_PASSTHROUGH
-}
+	actionsTotal
+)
+
+const (
+	actionNameInvalid  = "invalid"
+	actionNameRefuse   = "refuse"
+	actionNameAllow    = "allow"
+	actionNameRedirect = "redirect"
+	actionNameBlock    = "block"
+	actionNameLog      = "log"
+	actionNameDrop     = "drop"
+	actionNamePass     = "pass"
+)
+
+var actionNames [actionsTotal]string
+
+var emptyCtx *pdp.Context
 
 type attrHolder struct {
-	sourceIP        *pdp.Attribute
-	confAttrs       map[string]confAttrType
-	attrsReqDomain  []*pdp.Attribute
-	attrsRespDomain []*pdp.Attribute
-	attrsReqRespip  []*pdp.Attribute
-	attrsRespRespip []*pdp.Attribute
-	action          byte
-	redirect        string
-	attrsEdnsStart  int
-	attrsTransfer   []*pdp.Attribute
-	attrsDnstap     []*pdp.Attribute
+	dn string
+
+	dnReq []pdp.AttributeAssignment
+	dnRes []pdp.AttributeAssignment
+
+	transfer []pdp.AttributeAssignment
+
+	ipReq []pdp.AttributeAssignment
+	ipRes []pdp.AttributeAssignment
+
+	dnstap []pdp.AttributeAssignment
+
+	action byte
+	dst    string
 }
 
-func newAttrHolder(qName string, qType uint16, sourceIP string, conf map[string]confAttrType) *attrHolder {
-	if conf == nil {
-		conf = map[string]confAttrType{}
-	}
-	ret := &attrHolder{
-		confAttrs:      conf,
-		attrsReqDomain: make([]*pdp.Attribute, 4, 8),
-		action:         typeInvalid,
-		attrsEdnsStart: 3,
-	}
-	ret.attrsReqDomain[0] = &pdp.Attribute{Id: attrNameType, Type: "string", Value: typeValueQuery}
-	ret.attrsReqDomain[1] = &pdp.Attribute{Id: attrNameDomainName, Type: "domain", Value: strings.TrimRight(qName, ".")}
-	ret.attrsReqDomain[2] = &pdp.Attribute{Id: attrNameDNSQtype, Type: "string", Value: strconv.FormatUint(uint64(qType), 16)}
-	ret.sourceIP = &pdp.Attribute{Id: attrNameSourceIP, Type: "address", Value: sourceIP}
-	ret.attrsReqDomain[3] = ret.sourceIP
-	return ret
+func init() {
+	actionNames[actionInvalid] = actionNameInvalid
+	actionNames[actionRefuse] = actionNameRefuse
+	actionNames[actionAllow] = actionNameAllow
+	actionNames[actionRedirect] = actionNameRedirect
+	actionNames[actionBlock] = actionNameBlock
+	actionNames[actionLog] = actionNameLog
+	actionNames[actionDrop] = actionNameDrop
+
+	emptyCtx, _ = pdp.NewContext(nil, 0, nil)
 }
 
-func (ah *attrHolder) makeReqRespip(addr string) {
-	ah.attrsReqRespip = []*pdp.Attribute{
-		{Id: attrNameType, Type: "string", Value: typeValueResponse},
-		{Id: attrNameAddress, Type: "address", Value: addr},
+func newAttrHolderWithDnReq(w dns.ResponseWriter, r *dns.Msg, optMap map[uint16][]*edns0Opt, ag *AttrGauge) *attrHolder {
+	hdrCount := ednsAttrsStart
+	qName, qType := getNameAndType(r)
+	dn, err := domain.MakeNameFromString(qName)
+	if err != nil {
+		panic(fmt.Errorf("Can't treat %q as domain name: %s", qName, err))
 	}
 
-	ah.attrsReqRespip = append(ah.attrsReqRespip, ah.attrsTransfer...)
+	srcIP := getRemoteIP(w)
+	if srcIP != nil {
+		hdrCount++
+	}
+
+	ah := &attrHolder{
+		dn:    qName,
+		dnReq: make([]pdp.AttributeAssignment, hdrCount, 8),
+	}
+
+	ah.dnReq[0] = pdp.MakeStringAssignment(attrNameType, typeValueQuery)
+	ah.dnReq[1] = pdp.MakeDomainAssignment(attrNameDomainName, dn)
+	ah.dnReq[2] = pdp.MakeStringAssignment(attrNameDNSQtype, strconv.FormatUint(uint64(qType), 16))
+
+	if srcIP != nil {
+		ah.dnReq[3] = pdp.MakeAddressAssignment(attrNameSourceIP, srcIP)
+	}
+
+	extractOptionsFromEDNS0(r, optMap, func(b []byte, opts []*edns0Opt) {
+		for _, o := range opts {
+			if a, ok := makeAssignmentByType(o, b); ok {
+				if o.name == attrNameSourceIP && srcIP != nil {
+					ah.dnReq[3] = a
+				} else {
+					ah.dnReq = append(ah.dnReq, a)
+					if o.metrics && ag != nil {
+						ag.Inc(a)
+					}
+				}
+			}
+		}
+	})
+
+	return ah
 }
 
-func (ah *attrHolder) processConfAttr(attr *pdp.Attribute, t confAttrType) {
-	if t.isEnds() {
-		for _, item := range ah.attrsReqDomain[ah.attrsEdnsStart:] {
-			if item.Id == attr.Id {
+func makeAssignmentByType(o *edns0Opt, b []byte) (pdp.AttributeAssignment, bool) {
+	switch o.dataType {
+	case typeEDNS0Bytes:
+		return pdp.MakeStringAssignment(o.name, string(b)), true
+
+	case typeEDNS0Hex:
+		s := o.makeHexString(b)
+		return pdp.MakeStringAssignment(o.name, s), s != ""
+
+	case typeEDNS0IP:
+		return pdp.MakeAddressAssignment(o.name, net.IP(b)), true
+	}
+
+	panic(fmt.Errorf("unknown attribute type %d", o.dataType))
+}
+
+func (ah *attrHolder) addDnRes(r *pdp.Response, custAttrs map[string]custAttr) {
+	oCount := len(r.Obligations)
+
+	switch r.Effect {
+	default:
+		log.Printf("[ERROR] PDP Effect: %s, Reason: %s", pdp.EffectNameFromEnum(r.Effect), r.Status)
+		ah.action = actionInvalid
+
+	case pdp.EffectPermit:
+		ah.action = actionAllow
+
+		i := 0
+		for i < oCount {
+			o := r.Obligations[i]
+
+			id := o.GetID()
+			switch id {
+			case attrNameLog:
+				ah.action = actionLog
+
+			default:
+				if t, ok := custAttrs[id]; ok {
+					ah.putCustomAttr(o, t)
+
+					if t.isEdns() {
+						oCount--
+						r.Obligations[i] = r.Obligations[oCount]
+						continue
+					}
+				}
+			}
+
+			i++
+		}
+
+	case pdp.EffectDeny:
+		ah.action = actionBlock
+
+		i := 0
+		for i < oCount {
+			o := r.Obligations[i]
+
+			id := o.GetID()
+			switch id {
+			default:
+				if t, ok := custAttrs[id]; ok && t.isEdns() {
+					ah.putCustomAttr(o, t)
+
+					oCount--
+					r.Obligations[i] = r.Obligations[oCount]
+					continue
+				}
+
+			case attrNameRefuse:
+				ah.action = actionRefuse
+
+			case attrNameRedirectTo:
+				ah.addRedirect(o)
+
+			case attrNameDrop:
+				ah.action = actionDrop
+			}
+
+			i++
+		}
+	}
+
+	ah.dnRes = r.Obligations[:oCount]
+}
+
+func (ah *attrHolder) addRedirect(attr pdp.AttributeAssignment) {
+	ah.action = actionRedirect
+	dst, err := attr.GetString(emptyCtx)
+	if err != nil {
+		log.Printf("[ERROR] Action: %s, Destination: %s (%s)", actionNames[ah.action], serializeOrPanic(attr), err)
+
+		ah.action = actionInvalid
+		return
+	}
+
+	ah.dst = dst
+}
+
+func (ah *attrHolder) putCustomAttr(attr pdp.AttributeAssignment, f custAttr) {
+	if f.isEdns() {
+		id := attr.GetID()
+
+		for _, a := range ah.dnReq[ednsAttrsStart:] {
+			if id == a.GetID() {
 				return
 			}
 		}
-		ah.attrsReqDomain = append(ah.attrsReqDomain, attr)
+
+		ah.dnReq = append(ah.dnReq, attr)
 	}
-	if t.isTransfer() {
-		ah.attrsTransfer = append(ah.attrsTransfer, attr)
+
+	if f.isTransfer() {
+		ah.transfer = append(ah.transfer, attr)
 	}
-	if t.isDnstap() {
-		ah.attrsDnstap = append(ah.attrsDnstap, attr)
+
+	if f.isDnstap() {
+		ah.dnstap = append(ah.dnstap, attr)
 	}
 }
 
-func (ah *attrHolder) addResponse(r *pdp.Response, respip bool) {
-	i := 0
-	l := len(r.Obligation)
+func (ah *attrHolder) addIPReq(ip net.IP) {
+	ah.ipReq = append(
+		[]pdp.AttributeAssignment{
+			pdp.MakeStringAssignment(attrNameType, typeValueResponse),
+			pdp.MakeAddressAssignment(attrNameAddress, ip),
+		},
+		ah.transfer...,
+	)
+}
+
+func (ah *attrHolder) addIPRes(r *pdp.Response) {
 	switch r.Effect {
-	case pdp.Response_PERMIT:
-		// don't overwrite "Log" action from previous validation
-		if ah.action != typeLog {
-			ah.action = typeAllow
-		}
-		for i < l {
-			item := r.Obligation[i]
-			if item.Id == attrNameLog {
-				ah.action = typeLog
-			} else if !respip {
-				if t, ok := ah.confAttrs[item.Id]; ok {
-					ah.processConfAttr(item, t)
-					if t.isEnds() {
-						//remove duplicate ends attr from response
-						l--
-						r.Obligation[i] = r.Obligation[l]
-						continue
-					}
-				}
-			}
-			i++
-		}
-
-	case pdp.Response_DENY:
-		ah.action = typeBlock
-		for i < l {
-			item := r.Obligation[i]
-			switch item.Id {
-			case attrNameRefuse:
-				ah.action = typeRefuse
-			case attrNameRedirectTo:
-				ah.action = typeRedirect
-				ah.redirect = item.Value
-			case attrNameDrop:
-				ah.action = typeDrop
-			default:
-				if !respip {
-					if t, ok := ah.confAttrs[item.Id]; ok && t.isEnds() {
-						ah.processConfAttr(item, confAttrEdns)
-						//remove duplicate ends attr from response
-						l--
-						r.Obligation[i] = r.Obligation[l]
-						continue
-					}
-				}
-			}
-			i++
-		}
 	default:
-		log.Printf("[ERROR] PDP Effect: %s, Reason: %s", r.Effect, r.Reason)
-		ah.action = typeInvalid
+		log.Printf("[ERROR] PDP Effect: %s, Reason: %s", pdp.EffectNameFromEnum(r.Effect), r.Status)
+		ah.action = actionInvalid
+
+	case pdp.EffectPermit:
+		if ah.action == actionLog {
+			break
+		}
+		ah.action = actionAllow
+
+		for _, o := range r.Obligations {
+			if o.GetID() == attrNameLog {
+				ah.action = actionLog
+				break
+			}
+		}
+
+	case pdp.EffectDeny:
+		ah.action = actionBlock
+
+		for _, o := range r.Obligations {
+			switch o.GetID() {
+			case attrNameRefuse:
+				ah.action = actionRefuse
+
+			case attrNameRedirectTo:
+				ah.addRedirect(o)
+
+			case attrNameDrop:
+				ah.action = actionDrop
+			}
+		}
 	}
 
-	if !respip {
-		ah.attrsRespDomain = r.Obligation[:l]
-	} else {
-		ah.attrsRespRespip = r.Obligation[:l]
-	}
-	return
+	ah.ipRes = r.Obligations
 }
 
-func (ah *attrHolder) convertFullList() []*pb.DnstapAttribute {
-	lenAttrsReqDomain := len(ah.attrsReqDomain)
-	lenAttrsRespDomain := len(ah.attrsRespDomain)
-	lenAttrsReqRespip := len(ah.attrsReqRespip)
-	if lenAttrsReqRespip > 0 {
-		lenAttrsReqRespip = 1
+func (ah *attrHolder) makeDnstapReport() []*pb.DnstapAttribute {
+	if ah.action != actionAllow && ah.action != actionInvalid {
+		return ah.makeFullDnstapReport()
 	}
-	lenAttrsRespRespip := len(ah.attrsRespRespip)
-	length := lenAttrsReqDomain + lenAttrsRespDomain + lenAttrsReqRespip + lenAttrsRespRespip + 1
-	out := make([]*pb.DnstapAttribute, length)
-	i := 0
-	for j := 1; j < lenAttrsReqDomain; j++ {
-		out[i] = &pb.DnstapAttribute{
-			Id:    ah.attrsReqDomain[j].Id,
-			Value: ah.attrsReqDomain[j].Value,
-		}
-		i++
-	}
-	for j := 0; j < lenAttrsRespDomain; j++ {
-		out[i] = &pb.DnstapAttribute{
-			Id:    ah.attrsRespDomain[j].Id,
-			Value: ah.attrsRespDomain[j].Value,
-		}
-		i++
-	}
-	if lenAttrsReqRespip == 1 {
-		out[i] = &pb.DnstapAttribute{
-			Id:    ah.attrsReqRespip[1].Id,
-			Value: ah.attrsReqRespip[1].Value,
-		}
-		i++
-	}
-	for j := 0; j < lenAttrsRespRespip; j++ {
-		out[i] = &pb.DnstapAttribute{
-			Id:    ah.attrsRespRespip[j].Id,
-			Value: ah.attrsRespRespip[j].Value,
-		}
-		i++
-	}
-	out[i] = &pb.DnstapAttribute{Id: attrNamePolicyAction, Value: actionConvDnstap[ah.action]}
-	i++
-	if len(ah.attrsReqRespip) > 0 {
-		out[i] = &pb.DnstapAttribute{Id: attrNameType, Value: typeValueResponse}
-	} else {
-		out[i] = &pb.DnstapAttribute{Id: attrNameType, Value: typeValueQuery}
-	}
+
+	edns := ah.dnReq[ednsAttrsStart:]
+	dnstap := ah.dnstap
+
+	out := make([]*pb.DnstapAttribute, len(edns)+len(dnstap))
+	n := putAttrsToDnstap(edns, out)
+	putAttrsToDnstap(dnstap, out[n:])
+
 	return out
 }
 
-func (ah *attrHolder) isFullList() bool {
-	return ah.action != typeAllow && ah.action != typeInvalid
-}
-
-func (ah *attrHolder) convertAttrs() []*pb.DnstapAttribute {
-	if ah.isFullList() {
-		return ah.convertFullList()
+func (ah *attrHolder) makeFullDnstapReport() []*pb.DnstapAttribute {
+	lenIPReq := len(ah.ipReq)
+	if lenIPReq > 0 {
+		lenIPReq = 1
 	}
 
-	attrsEdns := ah.attrsReqDomain[ah.attrsEdnsStart:]
-	out := make([]*pb.DnstapAttribute, len(attrsEdns)+len(ah.attrsDnstap))
-	i := 0
-	for _, item := range attrsEdns {
-		out[i] = &pb.DnstapAttribute{
-			Id:    item.Id,
-			Value: item.Value,
-		}
-		i++
+	out := make([]*pb.DnstapAttribute, len(ah.dnReq)+len(ah.dnRes)+lenIPReq+len(ah.ipRes)+1)
+
+	n := putAttrsToDnstap(ah.dnReq[1:], out)
+	n += putAttrsToDnstap(ah.dnRes, out[n:])
+
+	if lenIPReq > 0 {
+		out[n] = newDnstapAttribute(ah.ipReq[ipReqAddrPos])
+		n++
 	}
-	for _, item := range ah.attrsDnstap {
-		out[i] = &pb.DnstapAttribute{
-			Id:    item.Id,
-			Value: item.Value,
-		}
-		i++
-	}
+
+	n += putAttrsToDnstap(ah.ipRes, out[n:])
+
+	out[n] = newDnstapAttributeFromAction(ah.action)
+	n++
+
+	out[n] = newDnstapAttributeFromReqType(lenIPReq > 0)
+
 	return out
 }

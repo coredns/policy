@@ -1,8 +1,6 @@
 package policy
 
 import (
-	"fmt"
-
 	"github.com/coredns/coredns/core/dnsserver"
 	"github.com/coredns/coredns/plugin"
 	"github.com/coredns/coredns/plugin/dnstap"
@@ -36,7 +34,8 @@ func setup(c *caddy.Controller) error {
 		if err != nil {
 			return plugin.Error("policy", err)
 		}
-		return nil
+
+		return policyPlugin.SetupMetrics(c)
 	})
 
 	c.OnShutdown(func() error {
@@ -50,21 +49,4 @@ func setup(c *caddy.Controller) error {
 	})
 
 	return nil
-}
-
-func policyParse(c *caddy.Controller) (*policyPlugin, error) {
-	p := newPolicyPlugin()
-
-	for c.Next() {
-		if c.Val() == "policy" {
-			c.RemainingArgs()
-			for c.NextBlock() {
-				if err := p.parseOption(c); err != nil {
-					return nil, err
-				}
-			}
-			return p, nil
-		}
-	}
-	return nil, fmt.Errorf("Policy setup called without keyword 'policy' in Corefile")
 }
