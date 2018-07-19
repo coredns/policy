@@ -15,7 +15,7 @@ type builtinClient struct {
 
 func NewBuiltinClient(policyFile string, contentFiles []string) *builtinClient {
 	fmt.Printf("pep client NewBuiltinClient() called..........\n")
-	s := ps.NewPDPService(policyFile, contentFiles)
+	s := ps.NewBuiltinPDPService(policyFile, contentFiles)
 	return &builtinClient{
 		s: s,
 	}
@@ -45,8 +45,6 @@ func (c *builtinClient) Validate(in, out interface{}) error {
 	case []byte, pb.Msg, *pb.Msg:
 	}
 
-
-
 	req, err := makeRequest(in, b)
 	if err != nil {
 		return err
@@ -59,4 +57,3 @@ func (c *builtinClient) Validate(in, out interface{}) error {
 
 	return fillResponse(*res, out)
 }
-

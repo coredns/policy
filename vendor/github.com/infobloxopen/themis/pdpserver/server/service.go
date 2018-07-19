@@ -2,15 +2,15 @@ package server
 
 import (
 	"fmt"
-	"strings"
-	log "github.com/sirupsen/logrus"
-	"golang.org/x/net/context"
-	"github.com/infobloxopen/themis/pdp/ast"
 	"github.com/infobloxopen/themis/pdp"
 	pb "github.com/infobloxopen/themis/pdp-service"
+	"github.com/infobloxopen/themis/pdp/ast"
+	log "github.com/sirupsen/logrus"
+	"golang.org/x/net/context"
+	"path/filepath"
+	"strings"
 	"sync"
 	"time"
-	"path/filepath"
 )
 
 type PDPService struct {
@@ -21,7 +21,7 @@ type PDPService struct {
 	c *pdp.LocalContentStorage
 }
 
-func NewPDPService(policyFile string, contentFiles []string) *PDPService {
+func NewBuiltinPDPService(policyFile string, contentFiles []string) *PDPService {
 	o := options{
 		logger:              log.StandardLogger(),
 		service:             ":5555",
