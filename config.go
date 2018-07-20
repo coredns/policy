@@ -14,20 +14,22 @@ import (
 var errInvalidOption = errors.New("invalid policy plugin option")
 
 type config struct {
-	endpoints   []string
-	options     map[uint16][]*edns0Opt
-	custAttrs   map[string]custAttr
-	debugID     string
-	debugSuffix string
-	streams     int
-	hotSpot     bool
-	passthrough []string
-	connTimeout time.Duration
-	maxReqSize  int
-	maxResAttrs int
-	log         bool
-	cacheTTL    time.Duration
-	cacheLimit  int
+	policyFile   string
+	contentFiles []string
+	endpoints    []string
+	options      map[uint16][]*edns0Opt
+	custAttrs    map[string]custAttr
+	debugID      string
+	debugSuffix  string
+	streams      int
+	hotSpot      bool
+	passthrough  []string
+	connTimeout  time.Duration
+	maxReqSize   int
+	maxResAttrs  int
+	log          bool
+	cacheTTL     time.Duration
+	cacheLimit   int
 }
 
 func policyParse(c *caddy.Controller) (*policyPlugin, error) {
@@ -49,6 +51,9 @@ func policyParse(c *caddy.Controller) (*policyPlugin, error) {
 
 func (conf *config) parseOption(c *caddy.Controller) error {
 	switch c.Val() {
+	case "pdp":
+		return conf.parsePDP(c)
+
 	case "endpoint":
 		return conf.parseEndpoint(c)
 
@@ -93,6 +98,21 @@ func (conf *config) parseOption(c *caddy.Controller) error {
 	}
 
 	return errInvalidOption
+}
+
+// Usage: pdp policy.[yaml|json] content1 content2...
+func (conf *config) parsePDP(c *caddy.Controller) error {
+	args := c.RemainingArgs()
+	argsLen := len(args)
+	if argsLen < 1 {
+		return c.ArgErr()
+	}
+
+	conf.policyFile = args[0]
+	if argsLen > 1 {
+		conf.contentFiles = args[1:]
+	}
+	return nil
 }
 
 func (conf *config) parseEndpoint(c *caddy.Controller) error {
