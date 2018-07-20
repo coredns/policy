@@ -18,6 +18,7 @@ func NewBuiltinClient(policyFile string, contentFiles []string) *builtinClient {
 	s := ps.NewBuiltinPDPService(policyFile, contentFiles)
 	return &builtinClient{
 		s: s,
+		pool: makeBytePool(10240, true),
 	}
 }
 

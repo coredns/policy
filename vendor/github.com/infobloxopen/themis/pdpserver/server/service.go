@@ -26,6 +26,7 @@ func NewBuiltinPDPService(policyFile string, contentFiles []string) *PDPService 
 		logger:              log.StandardLogger(),
 		service:             ":5555",
 		memStatsLogInterval: -1 * time.Second,
+		maxResponseSize:     10240,
 	}
 
 	ext := filepath.Ext(policyFile)
