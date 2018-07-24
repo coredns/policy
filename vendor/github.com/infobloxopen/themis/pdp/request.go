@@ -69,12 +69,64 @@ var (
 	}
 )
 
+const (
+	reqVersionSize = 2
+
+	reqSmallCounterSize = 1
+	reqBigCounterSize   = 2
+
+	reqTypeSize = 1
+
+	reqBooleanValueSize     = 0
+	reqIntegerValueSize     = 8
+	reqFloatValueSize       = 8
+	reqIPv4AddressValueSize = 4
+	reqIPv6AddressValueSize = 16
+	reqNetworkCIDRSize      = 1
+)
+
 // MarshalRequestAssignments marshals list of assignments to sequence of bytes.
 // It requires each assignment to have immediate value as an expression (which
-// can be created with MakeStringValue or similar functions). Caller should
-// provide large enough buffer. Function fills the buffer and returns
-// number of bytes written.
-func MarshalRequestAssignments(b []byte, in []AttributeAssignment) (int, error) {
+// can be created with MakeStringValue or similar functions).
+func MarshalRequestAssignments(in []AttributeAssignment) ([]byte, error) {
+	n, err := calcRequestSize(in)
+	if err != nil {
+		return nil, err
+	}
+
+	b := make([]byte, n)
+	_, err = MarshalRequestAssignmentsToBuffer(b, in)
+	return b, err
+}
+
+// MarshalRequestAssignmentsWithAllocator marshals list of assignments
+// to sequence of bytes in the same way as MarshalRequestAssignments. But
+// instead of make function it uses given allocator function to obtain buffer.
+// The allocator expected to take number of bytes and return slice of bytes
+// with given length.
+func MarshalRequestAssignmentsWithAllocator(in []AttributeAssignment, f func(n int) ([]byte, error)) ([]byte, error) {
+	n, err := calcRequestSize(in)
+	if err != nil {
+		return nil, err
+	}
+
+	b, err := f(n)
+	if err != nil {
+		return nil, err
+	}
+
+	n, err = MarshalRequestAssignmentsToBuffer(b, in)
+	if err != nil {
+		return nil, err
+	}
+
+	return b[:n], nil
+}
+
+// MarshalRequestAssignmentsToBuffer marshals list of assignments as a sequence of
+// bytes to given buffer. Caller should provide large enough buffer. Function fills
+// the buffer and returns number of bytes written.
+func MarshalRequestAssignmentsToBuffer(b []byte, in []AttributeAssignment) (int, error) {
 	off, err := putRequestVersion(b)
 	if err != nil {
 		return off, err
@@ -89,22 +141,59 @@ func MarshalRequestAssignments(b []byte, in []AttributeAssignment) (int, error) 
 }
 
 // MarshalRequestReflection marshals set of attributes wrapped with
-// reflect.Value to sequence of bytes. Caller should provide large enough
-// buffer. Also caller put attribute count to marshal. For each attribute
+// reflect.Value to sequence of bytes. For each attribute
 // MarshalRequestReflection calls f function with index of the attribute.
 // It expects the function to return attribute id, type and value.
-// For TypeBoolean MarshalRequestReflection expects bool value, for TypeString
-// - string, for TypeInteger - intX, uintX (internally converting to int64),
-// TypeFloat - float32 or float64, TypeAddress - net.IP, TypeNetwork - net.IPNet
-// or *net.IPNet, TypeDomain - string or domain.Name from
+// For TypeBoolean MarshalRequestReflectionToBuffer expects bool value,
+// for TypeString - string, for TypeInteger - intX, uintX (internally converting
+// to int64), TypeFloat - float32 or float64, TypeAddress - net.IP, TypeNetwork
+// - net.IPNet or *net.IPNet, TypeDomain - string or domain.Name from
 // github.com/infobloxopen/go-trees/domain package, TypeSetOfStrings -
 // *strtree.Tree from github.com/infobloxopen/go-trees/strtree package,
 // TypeSetOfNetworks - *iptree.Node from
 // github.com/infobloxopen/go-trees/iptree, TypeSetOfDomains - *domaintree.Node
 // from github.com/infobloxopen/go-trees/domaintree, TypeListOfStrings -
-// []string. The function fills given buffer and returns number of bytes
-// written.
-func MarshalRequestReflection(b []byte, c int, f func(i int) (string, Type, reflect.Value, error)) (int, error) {
+// []string.
+func MarshalRequestReflection(c int, f func(i int) (string, Type, reflect.Value, error)) ([]byte, error) {
+	n, err := calcRequestSizeFromReflection(c, f)
+	if err != nil {
+		return nil, err
+	}
+
+	b := make([]byte, n)
+	_, err = MarshalRequestReflectionToBuffer(b, c, f)
+	return b, err
+}
+
+// MarshalRequestReflectionWithAllocator marshals set of attributes wrapped with
+// reflect.Value to sequence of bytes in the same way
+// as MarshalRequestReflection. But instead of make function it uses given
+// allocator function to obtain buffer. The allocator expected to take number of
+// bytes and return slice of bytes with given length.
+func MarshalRequestReflectionWithAllocator(c int, f func(i int) (string, Type, reflect.Value, error), g func(n int) ([]byte, error)) ([]byte, error) {
+	n, err := calcRequestSizeFromReflection(c, f)
+	if err != nil {
+		return nil, err
+	}
+
+	b, err := g(n)
+	if err != nil {
+		return nil, err
+	}
+
+	n, err = MarshalRequestReflectionToBuffer(b, c, f)
+	if err != nil {
+		return nil, err
+	}
+
+	return b[:n], nil
+}
+
+// MarshalRequestReflectionToBuffer marshals set of attributes wrapped with
+// reflect.Value as a sequence of bytes to given buffer similarly to
+// MarshalRequestReflection. Caller should provide large enough buffer.
+// The function fills given buffer and returns number of bytes written.
+func MarshalRequestReflectionToBuffer(b []byte, c int, f func(i int) (string, Type, reflect.Value, error)) (int, error) {
 	off, err := putRequestVersion(b)
 	if err != nil {
 		return off, err
@@ -118,16 +207,40 @@ func MarshalRequestReflection(b []byte, c int, f func(i int) (string, Type, refl
 	return off + n, nil
 }
 
-// UnmarshalRequestAssignments parses given sequence of bytes as a list of
-// assignments. Caller should provide large enough out slice. The function
-// returns number of assignments written.
-func UnmarshalRequestAssignments(b []byte, out []AttributeAssignment) (int, error) {
+// UnmarshalRequestAssignments parses given sequence of bytes as
+// a list of assignments.
+func UnmarshalRequestAssignments(b []byte) ([]AttributeAssignment, error) {
+	n, err := checkRequestVersion(b)
+	if err != nil {
+		return nil, err
+	}
+
+	return getAssignmentExpressions(b[n:])
+}
+
+// UnmarshalRequestAssignmentsWithAllocator parses given sequence of bytes as
+// a list of assignments. It uses given allocator to make assignments array.
+// The allocator expected to take a number of assignments required and return
+// a slice of at least given length.
+func UnmarshalRequestAssignmentsWithAllocator(b []byte, f func(n int) ([]AttributeAssignment, error)) ([]AttributeAssignment, error) {
+	n, err := checkRequestVersion(b)
+	if err != nil {
+		return nil, err
+	}
+
+	return getAssignmentExpressionsWithAllocator(b[n:], f)
+}
+
+// UnmarshalRequestToAssignmentsArray parses given sequence of bytes as
+// a list of assignments to given buffer. Caller should provide large enough
+// out slice. The function returns number of assignments written.
+func UnmarshalRequestToAssignmentsArray(b []byte, out []AttributeAssignment) (int, error) {
 	n, err := checkRequestVersion(b)
 	if err != nil {
 		return 0, err
 	}
 
-	return getAssignmentExpressions(b[n:], out)
+	return getAssignmentExpressionsToArray(b[n:], out)
 }
 
 // UnmarshalRequestReflection parses given sequence of bytes to set of reflected
@@ -146,16 +259,16 @@ func UnmarshalRequestReflection(b []byte, f func(string, Type) (reflect.Value, e
 }
 
 func putRequestVersion(b []byte) (int, error) {
-	if len(b) < 2 {
+	if len(b) < reqVersionSize {
 		return 0, newRequestBufferOverflowError()
 	}
 
 	binary.LittleEndian.PutUint16(b, requestVersion)
-	return 2, nil
+	return reqVersionSize, nil
 }
 
 func checkRequestVersion(b []byte) (int, error) {
-	if len(b) < 2 {
+	if len(b) < reqVersionSize {
 		return 0, newRequestBufferUnderflowError()
 	}
 
@@ -163,7 +276,7 @@ func checkRequestVersion(b []byte) (int, error) {
 		return 0, newRequestVersionError(v, requestVersion)
 	}
 
-	return 2, nil
+	return reqVersionSize, nil
 }
 
 func putRequestAttributeCount(b []byte, n int) (int, error) {
@@ -175,20 +288,20 @@ func putRequestAttributeCount(b []byte, n int) (int, error) {
 		return 0, newRequestTooManyAttributesError(n)
 	}
 
-	if len(b) < 2 {
+	if len(b) < reqBigCounterSize {
 		return 0, newRequestBufferOverflowError()
 	}
 
 	binary.LittleEndian.PutUint16(b, uint16(n))
-	return 2, nil
+	return reqBigCounterSize, nil
 }
 
 func getRequestAttributeCount(b []byte) (int, int, error) {
-	if len(b) < 2 {
+	if len(b) < reqBigCounterSize {
 		return 0, 0, newRequestBufferUnderflowError()
 	}
 
-	return int(binary.LittleEndian.Uint16(b)), 2, nil
+	return int(binary.LittleEndian.Uint16(b)), reqBigCounterSize, nil
 }
 
 func putRequestAttribute(b []byte, name string, value AttributeValue) (int, error) {
@@ -240,7 +353,7 @@ func putRequestAttribute(b []byte, name string, value AttributeValue) (int, erro
 		return putRequestAttributeListOfStrings(b, name, v)
 	}
 
-	return 0, newRequestAttributeMarshallingNotImplemented(t)
+	return 0, newRequestAttributeMarshallingNotImplementedError(t)
 }
 
 func getRequestAttribute(b []byte) (string, AttributeValue, int, error) {
@@ -368,13 +481,13 @@ func putRequestAttributeName(b []byte, name string) (int, error) {
 		return 0, newRequestTooLongAttributeNameError(name)
 	}
 
-	n := len(name) + 1
+	n := len(name) + reqSmallCounterSize
 	if len(b) < n {
 		return 0, newRequestBufferOverflowError()
 	}
 
 	b[0] = byte(len(name))
-	copy(b[1:], []byte(name))
+	copy(b[reqSmallCounterSize:], []byte(name))
 
 	return n, nil
 }
@@ -397,20 +510,20 @@ func putRequestAttributeType(b []byte, t int) (int, error) {
 		return 0, newRequestAttributeMarshallingTypeError(t)
 	}
 
-	if len(b) < 1 {
+	if len(b) < reqTypeSize {
 		return 0, newRequestBufferOverflowError()
 	}
 
 	b[0] = byte(t)
-	return 1, nil
+	return reqTypeSize, nil
 }
 
 func getRequestAttributeType(b []byte) (int, int, error) {
-	if len(b) < 1 {
+	if len(b) < reqTypeSize {
 		return 0, 0, newRequestBufferUnderflowError()
 	}
 
-	return int(b[0]), 1, nil
+	return int(b[0]), reqTypeSize, nil
 }
 
 func putRequestAttributeBoolean(b []byte, name string, value bool) (int, error) {
@@ -461,28 +574,28 @@ func putRequestStringValue(b []byte, value string) (int, error) {
 		return 0, newRequestTooLongStringValueError(value)
 	}
 
-	n := len(value) + 2
+	n := len(value) + reqBigCounterSize
 	if len(b) < n {
 		return 0, newRequestBufferOverflowError()
 	}
 
 	binary.LittleEndian.PutUint16(b, uint16(len(value)))
-	copy(b[2:], value)
+	copy(b[reqBigCounterSize:], value)
 
 	return off + n, nil
 }
 
 func getRequestStringValue(b []byte) (string, int, error) {
-	if len(b) < 2 {
+	if len(b) < reqBigCounterSize {
 		return "", 0, newRequestBufferUnderflowError()
 	}
 
-	off := int(binary.LittleEndian.Uint16(b)) + 2
+	off := int(binary.LittleEndian.Uint16(b)) + reqBigCounterSize
 	if len(b) < off {
 		return "", 0, newRequestBufferUnderflowError()
 	}
 
-	return string(b[2:off]), off, nil
+	return string(b[reqBigCounterSize:off]), off, nil
 }
 
 func putRequestAttributeInteger(b []byte, name string, value int64) (int, error) {
@@ -507,20 +620,20 @@ func putRequestIntegerValue(b []byte, value int64) (int, error) {
 
 	b = b[off:]
 
-	if len(b) < 8 {
+	if len(b) < reqIntegerValueSize {
 		return 0, newRequestBufferOverflowError()
 	}
 
 	binary.LittleEndian.PutUint64(b, uint64(value))
-	return off + 8, nil
+	return off + reqIntegerValueSize, nil
 }
 
 func getRequestIntegerValue(b []byte) (int64, int, error) {
-	if len(b) < 8 {
+	if len(b) < reqIntegerValueSize {
 		return 0, 0, newRequestBufferUnderflowError()
 	}
 
-	return int64(binary.LittleEndian.Uint64(b)), 8, nil
+	return int64(binary.LittleEndian.Uint64(b)), reqIntegerValueSize, nil
 }
 
 func putRequestAttributeFloat(b []byte, name string, value float64) (int, error) {
@@ -604,21 +717,21 @@ func putRequestAddressValue(b []byte, value net.IP) (int, error) {
 }
 
 func getRequestIPv4AddressValue(b []byte) (net.IP, int, error) {
-	if len(b) < 4 {
+	if len(b) < reqIPv4AddressValueSize {
 		return nil, 0, newRequestBufferUnderflowError()
 	}
 
-	return net.IPv4(b[0], b[1], b[2], b[3]), 4, nil
+	return net.IPv4(b[0], b[1], b[2], b[3]), reqIPv4AddressValueSize, nil
 }
 
 func getRequestIPv6AddressValue(b []byte) (net.IP, int, error) {
-	if len(b) < 16 {
+	if len(b) < reqIPv6AddressValueSize {
 		return nil, 0, newRequestBufferUnderflowError()
 	}
 
-	ip := net.IP(make([]byte, 16))
+	ip := net.IP(make([]byte, reqIPv6AddressValueSize))
 	copy(ip, b)
-	return ip, 16, nil
+	return ip, reqIPv6AddressValueSize, nil
 }
 
 func putRequestAttributeNetwork(b []byte, name string, value *net.IPNet) (int, error) {
@@ -661,18 +774,18 @@ func putRequestNetworkValue(b []byte, value *net.IPNet) (int, error) {
 
 	b = b[off:]
 
-	if len(b) < len(ip)+1 {
+	if len(b) < len(ip)+reqNetworkCIDRSize {
 		return 0, newRequestBufferOverflowError()
 	}
 
 	b[0] = byte(ones)
 
-	copy(b[1:], ip)
-	return off + len(ip) + 1, nil
+	copy(b[reqNetworkCIDRSize:], ip)
+	return off + len(ip) + reqNetworkCIDRSize, nil
 }
 
 func getRequestIPv4NetworkValue(b []byte) (*net.IPNet, int, error) {
-	if len(b) < 5 {
+	if len(b) < reqNetworkCIDRSize+reqIPv4AddressValueSize {
 		return nil, 0, newRequestBufferUnderflowError()
 	}
 
@@ -682,13 +795,18 @@ func getRequestIPv4NetworkValue(b []byte) (*net.IPNet, int, error) {
 	}
 
 	return &net.IPNet{
-		IP:   net.IPv4(b[1], b[2], b[3], b[4]).Mask(mask),
+		IP: net.IPv4(
+			b[reqNetworkCIDRSize],
+			b[reqNetworkCIDRSize+1],
+			b[reqNetworkCIDRSize+2],
+			b[reqNetworkCIDRSize+3],
+		).Mask(mask),
 		Mask: mask,
-	}, 5, nil
+	}, reqNetworkCIDRSize + reqIPv4AddressValueSize, nil
 }
 
 func getRequestIPv6NetworkValue(b []byte) (*net.IPNet, int, error) {
-	if len(b) < 17 {
+	if len(b) < reqNetworkCIDRSize+reqIPv6AddressValueSize {
 		return nil, 0, newRequestBufferUnderflowError()
 	}
 
@@ -698,12 +816,12 @@ func getRequestIPv6NetworkValue(b []byte) (*net.IPNet, int, error) {
 	}
 
 	ip := net.IP(make([]byte, 16))
-	copy(ip, b[1:])
+	copy(ip, b[reqNetworkCIDRSize:])
 
 	return &net.IPNet{
 		IP:   ip.Mask(mask),
 		Mask: mask,
-	}, 17, nil
+	}, reqNetworkCIDRSize + reqIPv6AddressValueSize, nil
 }
 
 func putRequestAttributeDomain(b []byte, name string, value domain.Name) (int, error) {
@@ -730,13 +848,13 @@ func putRequestDomainValue(b []byte, value domain.Name) (int, error) {
 
 	b = b[off:]
 
-	n := len(s) + 2
+	n := len(s) + reqBigCounterSize
 	if len(b) < n {
 		return 0, newRequestBufferOverflowError()
 	}
 
 	binary.LittleEndian.PutUint16(b, uint16(len(s)))
-	copy(b[2:], []byte(s))
+	copy(b[reqBigCounterSize:], []byte(s))
 
 	return off + n, nil
 }
@@ -781,7 +899,7 @@ func putRequestSetOfStringsValue(b []byte, value *strtree.Tree) (int, error) {
 		return 0, newRequestTooLongCollectionValueError(TypeSetOfStrings, len(ss))
 	}
 
-	total := 2 * (len(ss) + 1)
+	total := reqBigCounterSize * (len(ss) + 1)
 	for i, s := range ss {
 		if len(s) > math.MaxUint16 {
 			return 0, bindErrorf(newRequestTooLongStringValueError(s), "%d", i+1)
@@ -795,11 +913,11 @@ func putRequestSetOfStringsValue(b []byte, value *strtree.Tree) (int, error) {
 	}
 
 	binary.LittleEndian.PutUint16(b[off:], uint16(len(ss)))
-	off += 2
+	off += reqBigCounterSize
 
 	for _, s := range ss {
 		binary.LittleEndian.PutUint16(b[off:], uint16(len(s)))
-		off += 2
+		off += reqBigCounterSize
 
 		copy(b[off:], s)
 		off += len(s)
@@ -809,14 +927,14 @@ func putRequestSetOfStringsValue(b []byte, value *strtree.Tree) (int, error) {
 }
 
 func getRequestSetOfStringsValue(b []byte) (*strtree.Tree, int, error) {
-	if len(b) < 2 {
+	if len(b) < reqBigCounterSize {
 		return nil, 0, newRequestBufferUnderflowError()
 	}
 
 	ss := strtree.NewTree()
 
 	count := int(binary.LittleEndian.Uint16(b))
-	off := 2
+	off := reqBigCounterSize
 
 	for i := 0; i < count; i++ {
 		s, n, err := getRequestStringValue(b[off:])
@@ -858,7 +976,7 @@ func putRequestSetOfNetworksValue(b []byte, value *iptree.Tree) (int, error) {
 		return 0, newRequestTooLongCollectionValueError(TypeSetOfNetworks, len(sn))
 	}
 
-	total := len(sn) + 2
+	total := len(sn) + reqBigCounterSize
 	for _, n := range sn {
 		total += len(n.IP)
 	}
@@ -868,7 +986,7 @@ func putRequestSetOfNetworksValue(b []byte, value *iptree.Tree) (int, error) {
 	}
 
 	binary.LittleEndian.PutUint16(b[off:], uint16(len(sn)))
-	off += 2
+	off += reqBigCounterSize
 
 	for _, n := range sn {
 		ones, bits := n.Mask.Size()
@@ -877,22 +995,22 @@ func putRequestSetOfNetworksValue(b []byte, value *iptree.Tree) (int, error) {
 		}
 
 		b[off] = byte(ones)
-		copy(b[off+1:], n.IP)
-		off += len(n.IP) + 1
+		copy(b[off+reqNetworkCIDRSize:], n.IP)
+		off += len(n.IP) + reqNetworkCIDRSize
 	}
 
 	return off, nil
 }
 
 func getRequestSetOfNetworksValue(b []byte) (*iptree.Tree, int, error) {
-	if len(b) < 2 {
+	if len(b) < reqBigCounterSize {
 		return nil, 0, newRequestBufferUnderflowError()
 	}
 
 	sn := iptree.NewTree()
 
 	count := int(binary.LittleEndian.Uint16(b))
-	off := 2
+	off := reqBigCounterSize
 
 	var (
 		size int
@@ -907,7 +1025,7 @@ func getRequestSetOfNetworksValue(b []byte) (*iptree.Tree, int, error) {
 		off++
 
 		if ones >= 0xc0 {
-			size = 4
+			size = reqIPv4AddressValueSize
 
 			ones -= 0xc0
 			mask = net.CIDRMask(int(ones), 32)
@@ -916,7 +1034,7 @@ func getRequestSetOfNetworksValue(b []byte) (*iptree.Tree, int, error) {
 					TypeSetOfNetworks.String())
 			}
 		} else {
-			size = 16
+			size = reqIPv6AddressValueSize
 
 			mask = net.CIDRMask(int(ones), 128)
 			if mask == nil {
@@ -968,7 +1086,7 @@ func putRequestSetOfDomainsValue(b []byte, value *domaintree.Node) (int, error) 
 		return 0, newRequestTooLongCollectionValueError(TypeSetOfDomains, len(sd))
 	}
 
-	total := 2 * (len(sd) + 1)
+	total := reqBigCounterSize * (len(sd) + 1)
 	for _, s := range sd {
 		total += len(s)
 	}
@@ -978,11 +1096,11 @@ func putRequestSetOfDomainsValue(b []byte, value *domaintree.Node) (int, error) 
 	}
 
 	binary.LittleEndian.PutUint16(b[off:], uint16(len(sd)))
-	off += 2
+	off += reqBigCounterSize
 
 	for _, s := range sd {
 		binary.LittleEndian.PutUint16(b[off:], uint16(len(s)))
-		off += 2
+		off += reqBigCounterSize
 
 		copy(b[off:], s)
 		off += len(s)
@@ -992,14 +1110,14 @@ func putRequestSetOfDomainsValue(b []byte, value *domaintree.Node) (int, error) 
 }
 
 func getRequestSetOfDomainsValue(b []byte) (*domaintree.Node, int, error) {
-	if len(b) < 2 {
+	if len(b) < reqBigCounterSize {
 		return nil, 0, newRequestBufferUnderflowError()
 	}
 
 	sd := new(domaintree.Node)
 
 	count := int(binary.LittleEndian.Uint16(b))
-	off := 2
+	off := reqBigCounterSize
 
 	for i := 0; i < count; i++ {
 		d, n, err := getRequestDomainValue(b[off:])
@@ -1039,7 +1157,7 @@ func putRequestListOfStringsValue(b []byte, value []string) (int, error) {
 		return 0, newRequestTooLongCollectionValueError(TypeListOfStrings, len(value))
 	}
 
-	total := 2 * (len(value) + 1)
+	total := reqBigCounterSize * (len(value) + 1)
 	for i, s := range value {
 		if len(s) > math.MaxUint16 {
 			return 0, bindErrorf(newRequestTooLongStringValueError(s), "%d", i+1)
@@ -1053,11 +1171,11 @@ func putRequestListOfStringsValue(b []byte, value []string) (int, error) {
 	}
 
 	binary.LittleEndian.PutUint16(b[off:], uint16(len(value)))
-	off += 2
+	off += reqBigCounterSize
 
 	for _, s := range value {
 		binary.LittleEndian.PutUint16(b[off:], uint16(len(s)))
-		off += 2
+		off += reqBigCounterSize
 
 		copy(b[off:], s)
 		off += len(s)
@@ -1067,12 +1185,12 @@ func putRequestListOfStringsValue(b []byte, value []string) (int, error) {
 }
 
 func getRequestListOfStringsValue(b []byte) ([]string, int, error) {
-	if len(b) < 2 {
+	if len(b) < reqBigCounterSize {
 		return nil, 0, newRequestBufferUnderflowError()
 	}
 
 	count := int(binary.LittleEndian.Uint16(b))
-	off := 2
+	off := reqBigCounterSize
 
 	ls := make([]string, count)
 
@@ -1088,4 +1206,204 @@ func getRequestListOfStringsValue(b []byte) ([]string, int, error) {
 	}
 
 	return ls, off, nil
+}
+
+func calcRequestSize(in []AttributeAssignment) (int, error) {
+	s, err := calcAssignmentExpressionsSize(in)
+	if err != nil {
+		return 0, err
+	}
+
+	return reqVersionSize + s, nil
+}
+
+func calcRequestSizeFromReflection(c int, f func(i int) (string, Type, reflect.Value, error)) (int, error) {
+	s, err := calcAttributesSizeFromReflection(c, f)
+	if err != nil {
+		return 0, err
+	}
+
+	return reqVersionSize + s, nil
+}
+
+func calcRequestAttributeSize(value AttributeValue) (int, error) {
+	var (
+		s   int
+		err error
+	)
+
+	t := value.GetResultType()
+	switch t {
+	default:
+		return 0, newRequestAttributeMarshallingNotImplementedError(t)
+
+	case TypeBoolean:
+		break
+
+	case TypeString:
+		v, _ := value.str()
+		s, err = calcRequestAttributeStringSize(v)
+
+	case TypeInteger:
+		v, _ := value.integer()
+		s, err = calcRequestAttributeIntegerSize(v)
+
+	case TypeFloat:
+		v, _ := value.float()
+		s, err = calcRequestAttributeFloatSize(v)
+
+	case TypeAddress:
+		v, _ := value.address()
+		s, err = calcRequestAttributeAddressSize(v)
+
+	case TypeNetwork:
+		v, _ := value.network()
+		s, err = calcRequestAttributeNetworkSize(v)
+
+	case TypeDomain:
+		v, _ := value.domain()
+		s, err = calcRequestAttributeDomainSize(v)
+
+	case TypeSetOfStrings:
+		v, _ := value.setOfStrings()
+		s, err = calcRequestAttributeSetOfStringsSize(v)
+
+	case TypeSetOfNetworks:
+		v, _ := value.setOfNetworks()
+		s, err = calcRequestAttributeSetOfNetworksSize(v)
+
+	case TypeSetOfDomains:
+		v, _ := value.setOfDomains()
+		s, err = calcRequestAttributeSetOfDomainsSize(v)
+
+	case TypeListOfStrings:
+		v, _ := value.listOfStrings()
+		s, err = calcRequestAttributeListOfStringsSize(v)
+	}
+
+	return reqTypeSize + s, err
+}
+
+func calcRequestAttributeNameSize(name string) (int, error) {
+	if len(name) > math.MaxUint8 {
+		return 0, newRequestTooLongAttributeNameError(name)
+	}
+
+	return reqSmallCounterSize + len(name), nil
+}
+
+func calcRequestAttributeStringSize(value string) (int, error) {
+	if len(value) > math.MaxUint16 {
+		return 0, newRequestTooLongStringValueError(value)
+	}
+
+	return reqBigCounterSize + len(value), nil
+}
+
+func calcRequestAttributeIntegerSize(value int64) (int, error) {
+	return reqIntegerValueSize, nil
+}
+
+func calcRequestAttributeFloatSize(value float64) (int, error) {
+	return reqFloatValueSize, nil
+}
+
+func calcRequestAttributeAddressSize(value net.IP) (int, error) {
+	if ip := value.To4(); ip != nil {
+		return len(ip), nil
+	}
+
+	if ip := value.To16(); ip != nil {
+		return len(ip), nil
+	}
+
+	return 0, newRequestAddressValueError(value)
+}
+
+func calcRequestAttributeNetworkSize(value *net.IPNet) (int, error) {
+	if value == nil {
+		return 0, newRequestInvalidNetworkValueError(value)
+	}
+
+	ip := value.IP
+	if len(ip) != 4 && len(ip) != 16 {
+		return 0, newRequestInvalidNetworkValueError(value)
+	}
+
+	_, bits := value.Mask.Size()
+	if bits == 32 || bits == 128 {
+		return reqNetworkCIDRSize + len(ip), nil
+	}
+
+	return 0, newRequestInvalidNetworkValueError(value)
+}
+
+func calcRequestAttributeDomainSize(value domain.Name) (int, error) {
+	return calcRequestAttributeStringSize(value.String())
+}
+
+func calcRequestAttributeSetOfStringsSize(value *strtree.Tree) (int, error) {
+	ss := SortSetOfStrings(value)
+
+	if len(ss) > math.MaxUint16 {
+		return 0, newRequestTooLongCollectionValueError(TypeSetOfStrings, len(ss))
+	}
+
+	total := reqBigCounterSize * (len(ss) + 1)
+	for i, s := range ss {
+		if len(s) > math.MaxUint16 {
+			return 0, bindErrorf(newRequestTooLongStringValueError(s), "%d", i+1)
+		}
+
+		total += len(s)
+	}
+
+	return total, nil
+}
+
+func calcRequestAttributeSetOfNetworksSize(value *iptree.Tree) (int, error) {
+	sn := SortSetOfNetworks(value)
+
+	if len(sn) > math.MaxUint16 {
+		return 0, newRequestTooLongCollectionValueError(TypeSetOfNetworks, len(sn))
+	}
+
+	total := len(sn) + reqBigCounterSize
+	for _, n := range sn {
+		total += len(n.IP)
+	}
+
+	return total, nil
+}
+
+func calcRequestAttributeSetOfDomainsSize(value *domaintree.Node) (int, error) {
+	sd := SortSetOfDomains(value)
+
+	if len(sd) > math.MaxUint16 {
+		return 0, newRequestTooLongCollectionValueError(TypeSetOfDomains, len(sd))
+	}
+
+	total := reqBigCounterSize * (len(sd) + 1)
+	for _, s := range sd {
+		total += len(s)
+	}
+
+	return total, nil
+}
+
+func calcRequestAttributeListOfStringsSize(value []string) (int, error) {
+	if len(value) > math.MaxUint16 {
+		return 0, newRequestTooLongCollectionValueError(TypeListOfStrings, len(value))
+	}
+
+	total := reqBigCounterSize * (len(value) + 1)
+	for i, s := range value {
+		if len(s) > math.MaxUint16 {
+			return 0, bindErrorf(newRequestTooLongStringValueError(s), "%d", i+1)
+		}
+
+		total += len(s)
+	}
+
+	return total, nil
 }

@@ -9,7 +9,6 @@ import (
 	"io"
 	"net"
 	"net/http"
-	"os"
 	"sync"
 	"time"
 
@@ -103,6 +102,13 @@ func WithMemLimits(limits MemLimits) Option {
 	}
 }
 
+// WithAutoResponseSize creates an options which makes server automatically allocate response buffer. If the options isn't set server uses default fixed buffer size which is 10KB.
+func WithAutoResponseSize(b bool) Option {
+	return func(o *options) {
+		o.autoResponseSize = b
+	}
+}
+
 // WithMaxResponseSize creates an option which limits response size in bytes. Default is 10KB. In case if a response doesn't fit the constraint, PDP puts error message to response which indicates this fact. Buffer should be at least pdp.MinResponseSize long to accept the error.
 func WithMaxResponseSize(size uint32) Option {
 	return func(o *options) {
@@ -127,6 +133,20 @@ func WithMemProfDumping(path string, numGC uint32, delay time.Duration) Option {
 	}
 }
 
+// WithPolicyFile returns a Option which sets policy file
+func WithPolicyFile(policyFile string) Option {
+	return func(o *options) {
+		o.policyFile = policyFile
+	}
+}
+
+// WithContentFiles returns a Option which sets list of content files
+func WithContentFiles(contentFiles []string) Option {
+	return func(o *options) {
+		o.contentFiles = contentFiles
+	}
+}
+
 const memStatsCheckInterval = 100 * time.Millisecond
 
 type options struct {
@@ -141,18 +161,22 @@ type options struct {
 	memLimits *MemLimits
 	streams   uint32
 
-	maxResponseSize uint32
+	autoResponseSize bool
+	maxResponseSize  uint32
 
 	memStatsLogPath     string
 	memStatsLogInterval time.Duration
 	memProfDumpPath     string
 	memProfNumGC        uint32
 	memProfDelay        time.Duration
+
+	policyFile   string
+	contentFiles []string
 }
 
 // Server structure is PDP server object
 type Server struct {
-	PDPService
+	*PDPService
 
 	sync.RWMutex
 
@@ -168,9 +192,6 @@ type Server struct {
 	storageCtrl net.Listener
 
 	q *queue
-
-	//	p *pdp.PolicyStorage
-	//	c *pdp.LocalContentStorage
 
 	softMemWarn *time.Time
 	backMemWarn *time.Time
@@ -207,34 +228,9 @@ func NewServer(opts ...Option) *Server {
 		q:                   newQueue(),
 		memProfBaseDumpDone: memProfBaseDumpDone,
 	}
-	s.PDPService.opts = o
-	s.c = pdp.NewLocalContentStorage(nil)
+
+	s.PDPService = NewPDPService(o)
 	return s
-}
-
-// LoadPolicies loads policies from file
-func (s *PDPService) LoadPolicies(path string) error {
-	if len(path) <= 0 {
-		return nil
-	}
-
-	s.opts.logger.WithField("policy", path).Info("Loading policy")
-	pf, err := os.Open(path)
-	if err != nil {
-		s.opts.logger.WithFields(log.Fields{"policy": path, "error": err}).Error("Failed load policy")
-		return err
-	}
-
-	s.opts.logger.WithField("policy", path).Info("Parsing policy")
-	p, err := s.opts.parser.Unmarshal(pf, nil)
-	if err != nil {
-		s.opts.logger.WithFields(log.Fields{"policy": path, "error": err}).Error("Failed parse policy")
-		return err
-	}
-
-	s.p = p
-
-	return nil
 }
 
 // ReadPolicies reads policies with using io.Reader instance
@@ -251,38 +247,6 @@ func (s *Server) ReadPolicies(r io.Reader) error {
 	}
 
 	s.p = p
-
-	return nil
-}
-
-// LoadContent loads content from files
-func (s *PDPService) LoadContent(paths []string) error {
-	items := []*pdp.LocalContent{}
-	for _, path := range paths {
-		err := func() error {
-			s.opts.logger.WithField("content", path).Info("Opening content")
-			f, err := os.Open(path)
-			if err != nil {
-				return err
-			}
-
-			defer f.Close()
-
-			s.opts.logger.WithField("content", path).Info("Parsing content")
-			item, err := jcon.Unmarshal(f, nil)
-			if err != nil {
-				return err
-			}
-
-			items = append(items, item)
-			return nil
-		}()
-		if err != nil {
-			return err
-		}
-	}
-
-	s.c = pdp.NewLocalContentStorage(items)
 
 	return nil
 }

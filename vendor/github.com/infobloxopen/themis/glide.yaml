@@ -1,16 +1,19 @@
 package: github.com/infobloxopen/themis
 import:
 - package: github.com/sirupsen/logrus
+- package: github.com/allegro/bigcache
 - package: github.com/coredns/coredns
   subpackages:
   - core/dnsserver
   - plugin
-  - request
+  - plugin/dnstap
+  - plugin/dnstap/msg
+  - plugin/dnstap/taprw
+  - plugin/metrics
+  - plugin/pkg/nonwriter
+  - plugin/pkg/trace
 - package: github.com/golang/protobuf
-  subpackages:
-  - proto
-- package: github.com/apache/thrift
-- package: github.com/gogo/protobuf
+  version: v1.1.0
   subpackages:
   - proto
 - package: github.com/grpc-ecosystem/grpc-opentracing
@@ -18,25 +21,47 @@ import:
   - go/otgrpc
 - package: github.com/mholt/caddy
 - package: github.com/miekg/dns
-  subpackages:
-  - internal/socket
 - package: github.com/opentracing/opentracing-go
 - package: github.com/openzipkin/zipkin-go-opentracing
+- package: github.com/pmezard/go-difflib
+  subpackages:
+  - difflib
+- package: github.com/prometheus/client_golang
+  subpackages:
+  - prometheus
 - package: golang.org/x/net
   subpackages:
   - context
-  - idna
-- package: golang.org/x/text
-  subpackages:
-  - unicode/norm
 - package: google.golang.org/grpc
+  version: v1.13.0
   subpackages:
+  - balancer
   - naming
+  - transport
 - package: gopkg.in/yaml.v2
 - package: github.com/google/uuid
 - package: github.com/infobloxopen/go-trees
   subpackages:
+  - domain
   - domaintree
-  - strtree
   - iptree
+  - strtree
+  - uintX/domaintree16
+  - uintX/domaintree32
+  - uintX/domaintree64
+  - uintX/domaintree8
+  - uintX/iptree16
+  - uintX/iptree32
+  - uintX/iptree64
+  - uintX/iptree8
+  - uintX/strtree16
+  - uintX/strtree32
+  - uintX/strtree64
+  - uintX/strtree8
 - package: github.com/dnstap/golang-dnstap
+- package: golang.org/x/sys
+  version: ac767d655b305d4e9612f5f6e33120b9176c4ad4
+testImport:
+- package: github.com/prometheus/client_model
+  subpackages:
+  - go

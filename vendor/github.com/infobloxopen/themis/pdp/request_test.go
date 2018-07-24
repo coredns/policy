@@ -3,6 +3,7 @@ package pdp
 import (
 	"bytes"
 	"encoding/binary"
+	"errors"
 	"fmt"
 	"math"
 	"net"
@@ -34,52 +35,190 @@ func TestRequestWireTypesTotal(t *testing.T) {
 }
 
 func TestMarshalRequestAssignments(t *testing.T) {
+	b, err := MarshalRequestAssignments(testRequestAssignments)
+	assertRequestBytesBuffer(t, "MarshalRequestAssignments", err, b, len(b), testWireRequest...)
+
+	b, err = MarshalRequestAssignments([]AttributeAssignment{
+		MakeExpressionAssignment("test", UndefinedValue),
+	})
+	if err == nil {
+		t.Errorf("expected requestAttributeMarshallingNotImplementedError but got %d bytes in request", len(b))
+	} else if _, ok := err.(*requestAttributeMarshallingNotImplementedError); !ok {
+		t.Errorf("expected *requestAttributeMarshallingNotImplementedError but got %T (%s)", err, err)
+	}
+}
+
+func TestMarshalRequestAssignmentsWithAllocator(t *testing.T) {
+	b, err := MarshalRequestAssignmentsWithAllocator(testRequestAssignments, func(n int) ([]byte, error) {
+		return make([]byte, n), nil
+	})
+	assertRequestBytesBuffer(t, "MarshalRequestAssignments", err, b, len(b), testWireRequest...)
+
+	testFuncErr := errors.New("test function error")
+	b, err = MarshalRequestAssignmentsWithAllocator(testRequestAssignments, func(n int) ([]byte, error) {
+		return nil, testFuncErr
+	})
+	if err == nil {
+		t.Errorf("expected testFuncErr but got %d bytes in request", len(b))
+	} else if err != testFuncErr {
+		t.Errorf("expected testFuncErr but got %T (%s)", err, err)
+	}
+
+	b, err = MarshalRequestAssignmentsWithAllocator([]AttributeAssignment{
+		MakeExpressionAssignment("test", UndefinedValue),
+	}, func(n int) ([]byte, error) {
+		return make([]byte, n), nil
+	})
+	if err == nil {
+		t.Errorf("expected requestAttributeMarshallingNotImplementedError but got %d bytes in request", len(b))
+	} else if _, ok := err.(*requestAttributeMarshallingNotImplementedError); !ok {
+		t.Errorf("expected *requestAttributeMarshallingNotImplementedError but got %T (%s)", err, err)
+	}
+
+	b, err = MarshalRequestAssignmentsWithAllocator(testRequestAssignments, func(n int) ([]byte, error) {
+		return make([]byte, 2), nil
+	})
+	assertRequestBufferOverflow(t, "MarshalRequestAssignmentsWithAllocator", err, len(b))
+}
+
+func TestMarshalRequestAssignmentsToBuffer(t *testing.T) {
 	var b [44]byte
-	n, err := MarshalRequestAssignments(b[:], testRequestAssignments)
-	assertRequestBytesBuffer(t, "MarshalRequestAssignments", err, b[:], n, testWireRequest...)
+	n, err := MarshalRequestAssignmentsToBuffer(b[:], testRequestAssignments)
+	assertRequestBytesBuffer(t, "MarshalRequestAssignmentsToBuffer", err, b[:], n, testWireRequest...)
 
-	n, err = MarshalRequestAssignments([]byte{}, testRequestAssignments)
-	assertRequestBufferOverflow(t, "MarshalRequestAssignments(count)", err, n)
+	n, err = MarshalRequestAssignmentsToBuffer([]byte{}, testRequestAssignments)
+	assertRequestBufferOverflow(t, "MarshalRequestAssignmentsToBuffer(count)", err, n)
 
-	n, err = MarshalRequestAssignments(b[:2], testRequestAssignments)
-	assertRequestBufferOverflow(t, "MarshalRequestAssignments(first value)", err, n)
+	n, err = MarshalRequestAssignmentsToBuffer(b[:2], testRequestAssignments)
+	assertRequestBufferOverflow(t, "MarshalRequestAssignmentsToBuffer(first value)", err, n)
 }
 
 func TestMarshalRequestReflection(t *testing.T) {
+	b, err := MarshalRequestReflection(1, func(i int) (string, Type, reflect.Value, error) {
+		return "boolean", TypeBoolean, reflect.ValueOf(true), nil
+	})
+	assertRequestBytesBuffer(t, "MarshalRequestReflectionToBuffer", err, b, len(b),
+		1, 0, 1, 0,
+		7, 'b', 'o', 'o', 'l', 'e', 'a', 'n', byte(requestWireTypeBooleanTrue),
+	)
+
+	testFuncErr := errors.New("test function error")
+	b, err = MarshalRequestReflection(1, func(i int) (string, Type, reflect.Value, error) {
+		return "", TypeUndefined, reflectValueNil, testFuncErr
+	})
+	if err == nil {
+		t.Errorf("expected testFuncErr but got %d bytes in request", len(b))
+	} else if err != testFuncErr {
+		t.Errorf("expected testFuncErr but got %T (%s)", err, err)
+	}
+}
+
+func TestMarshalRequestReflectionWithAllocator(t *testing.T) {
+	b, err := MarshalRequestReflectionWithAllocator(1, func(i int) (string, Type, reflect.Value, error) {
+		return "boolean", TypeBoolean, reflect.ValueOf(true), nil
+	}, func(n int) ([]byte, error) {
+		return make([]byte, n), nil
+	})
+	assertRequestBytesBuffer(t, "MarshalRequestReflectionToBuffer", err, b, len(b),
+		1, 0, 1, 0,
+		7, 'b', 'o', 'o', 'l', 'e', 'a', 'n', byte(requestWireTypeBooleanTrue),
+	)
+
+	testFuncErr := errors.New("test function error")
+	b, err = MarshalRequestReflectionWithAllocator(1, func(i int) (string, Type, reflect.Value, error) {
+		return "", TypeUndefined, reflectValueNil, testFuncErr
+	}, func(n int) ([]byte, error) {
+		return make([]byte, n), nil
+	})
+	if err == nil {
+		t.Errorf("expected testFuncErr but got %d bytes in request", len(b))
+	} else if err != testFuncErr {
+		t.Errorf("expected testFuncErr but got %T (%s)", err, err)
+	}
+
+	b, err = MarshalRequestReflectionWithAllocator(1, func(i int) (string, Type, reflect.Value, error) {
+		return "boolean", TypeBoolean, reflect.ValueOf(true), nil
+	}, func(n int) ([]byte, error) {
+		return nil, testFuncErr
+	})
+	if err == nil {
+		t.Errorf("expected testFuncErr but got %d bytes in request", len(b))
+	} else if err != testFuncErr {
+		t.Errorf("expected testFuncErr but got %T (%s)", err, err)
+	}
+
+	b, err = MarshalRequestReflectionWithAllocator(1, func(i int) (string, Type, reflect.Value, error) {
+		return "boolean", TypeBoolean, reflect.ValueOf(true), nil
+	}, func(n int) ([]byte, error) {
+		return make([]byte, 2), nil
+	})
+	assertRequestBufferOverflow(t, "MarshalRequestReflectionWithAllocator", err, len(b))
+}
+
+func TestMarshalRequestReflectionToBuffer(t *testing.T) {
 	var b [13]byte
 
 	f := func(i int) (string, Type, reflect.Value, error) {
 		return "boolean", TypeBoolean, reflect.ValueOf(true), nil
 	}
-	n, err := MarshalRequestReflection(b[:], 1, f)
-	assertRequestBytesBuffer(t, "MarshalRequestReflection", err, b[:], n,
+	n, err := MarshalRequestReflectionToBuffer(b[:], 1, f)
+	assertRequestBytesBuffer(t, "MarshalRequestReflectionToBuffer", err, b[:], n,
 		1, 0, 1, 0,
 		7, 'b', 'o', 'o', 'l', 'e', 'a', 'n', byte(requestWireTypeBooleanTrue),
 	)
 
-	n, err = MarshalRequestReflection([]byte{}, 1, f)
-	assertRequestBufferOverflow(t, "MarshalRequestReflection(version)", err, n)
+	n, err = MarshalRequestReflectionToBuffer([]byte{}, 1, f)
+	assertRequestBufferOverflow(t, "MarshalRequestReflectionToBuffer(version)", err, n)
 
-	n, err = MarshalRequestReflection(b[:2], 1, f)
-	assertRequestBufferOverflow(t, "MarshalRequestReflection(collection)", err, n)
+	n, err = MarshalRequestReflectionToBuffer(b[:2], 1, f)
+	assertRequestBufferOverflow(t, "MarshalRequestReflectionToBuffer(collection)", err, n)
 }
 
 func TestUnmarshalRequestAssignments(t *testing.T) {
+	a, err := UnmarshalRequestAssignments(testWireRequest)
+	assertRequestAssignmentExpressions(t, "UnmarshalRequestAssignments", err, a, len(a), testRequestAssignments...)
+
+	a, err = UnmarshalRequestAssignments([]byte{0, 0, 0, 0})
+	if err == nil {
+		t.Errorf("expected *requestVersionError but got %d attributes", len(a))
+	} else if _, ok := err.(*requestVersionError); !ok {
+		t.Errorf("expected *requestVersionError but got %T (%s)", err, err)
+	}
+}
+
+func TestUnmarshalRequestAssignmentsWithAllocator(t *testing.T) {
+	a, err := UnmarshalRequestAssignmentsWithAllocator(testWireRequest, func(n int) ([]AttributeAssignment, error) {
+		return make([]AttributeAssignment, n), nil
+	})
+	assertRequestAssignmentExpressions(t, "UnmarshalRequestAssignmentsWithAllocator", err, a, len(a),
+		testRequestAssignments...)
+
+	a, err = UnmarshalRequestAssignmentsWithAllocator([]byte{0, 0, 0, 0}, func(n int) ([]AttributeAssignment, error) {
+		return make([]AttributeAssignment, n), nil
+	})
+	if err == nil {
+		t.Errorf("expected *requestVersionError but got %d attributes", len(a))
+	} else if _, ok := err.(*requestVersionError); !ok {
+		t.Errorf("expected *requestVersionError but got %T (%s)", err, err)
+	}
+}
+
+func TestUnmarshalRequestToAssignmentsArray(t *testing.T) {
 	var a [3]AttributeAssignment
 
-	n, err := UnmarshalRequestAssignments(testWireRequest, a[:])
-	assertRequestAssignmentExpressions(t, "UnmarshalRequestAssignments", err, a[:], n, testRequestAssignments...)
+	n, err := UnmarshalRequestToAssignmentsArray(testWireRequest, a[:])
+	assertRequestAssignmentExpressions(t, "UnmarshalRequestToAssignmentsArray", err, a[:], n, testRequestAssignments...)
 
-	n, err = UnmarshalRequestAssignments([]byte{}, a[:])
+	n, err = UnmarshalRequestToAssignmentsArray([]byte{}, a[:])
 	if err == nil {
-		t.Errorf("expected *requestBufferUnderflowError but got %d bytes", n)
+		t.Errorf("expected *requestBufferUnderflowError but got %d attributes", n)
 	} else if _, ok := err.(*requestBufferUnderflowError); !ok {
 		t.Errorf("expected *requestBufferUnderflowError but got %T (%s)", err, err)
 	}
 
-	n, err = UnmarshalRequestAssignments([]byte{1, 0}, a[:])
+	n, err = UnmarshalRequestToAssignmentsArray([]byte{1, 0}, a[:])
 	if err == nil {
-		t.Errorf("expected *requestBufferUnderflowError but got %d bytes", n)
+		t.Errorf("expected *requestBufferUnderflowError but got %d attributes", n)
 	} else if _, ok := err.(*requestBufferUnderflowError); !ok {
 		t.Errorf("expected *requestBufferUnderflowError but got %T (%s)", err, err)
 	}
@@ -1391,8 +1530,8 @@ func TestPutRequestAttribute(t *testing.T) {
 	n, err = putRequestAttribute(b[:], "undefined", UndefinedValue)
 	if err == nil {
 		t.Errorf("expected no data put to buffer for undefined value but got %d", n)
-	} else if _, ok := err.(*requestAttributeMarshallingNotImplemented); !ok {
-		t.Errorf("expected *requestAttributeMarshallingNotImplemented but got %T (%s)", err, err)
+	} else if _, ok := err.(*requestAttributeMarshallingNotImplementedError); !ok {
+		t.Errorf("expected *requestAttributeMarshallingNotImplementedError but got %T (%s)", err, err)
 	}
 }
 
@@ -1899,6 +2038,391 @@ func TestPutRequestListOfStringsValue(t *testing.T) {
 	n, err = putRequestListOfStringsValue(b[:], []string{"one", "two", string(make([]byte, math.MaxUint16+1))})
 	if err == nil {
 		t.Errorf("expected no data put with too big list of strings element but got %d", n)
+	} else if _, ok := err.(*requestTooLongStringValueError); !ok {
+		t.Errorf("expected *requestTooLongStringValueError but got %T (%s)", err, err)
+	}
+}
+
+func TestCalcRequestSize(t *testing.T) {
+	s, err := calcRequestSize(testRequestAssignments)
+	if err != nil {
+		t.Error(err)
+	} else if s != len(testWireRequest) {
+		t.Errorf("expected %d bytes in request but got %d", testWireRequest, s)
+	}
+
+	s, err = calcRequestSize([]AttributeAssignment{
+		MakeExpressionAssignment("test", UndefinedValue),
+	})
+	if err == nil {
+		t.Errorf("expected requestAttributeMarshallingNotImplementedError but got %d bytes in request", s)
+	} else if _, ok := err.(*requestAttributeMarshallingNotImplementedError); !ok {
+		t.Errorf("expected *requestAttributeMarshallingNotImplementedError but got %T (%s)", err, err)
+	}
+}
+
+func TestCalcRequestSizeFromReflection(t *testing.T) {
+	s, err := calcRequestSizeFromReflection(11, testReflectAttributes)
+	if err != nil {
+		t.Error(err)
+	} else if s != len(testWireReflectAttributes)+reqVersionSize {
+		t.Errorf("expected %d bytes in request but got %d", len(testWireReflectAttributes)+reqVersionSize, s)
+	}
+
+	testFuncErr := errors.New("test function error")
+	s, err = calcRequestSizeFromReflection(1, func(i int) (string, Type, reflect.Value, error) {
+		return "", TypeUndefined, reflectValueNil, testFuncErr
+	})
+	if err == nil {
+		t.Errorf("expected testFuncErr but got %d bytes in request", s)
+	} else if err != testFuncErr {
+		t.Errorf("expected testFuncErr but got %T (%s)", err, err)
+	}
+}
+
+func TestCalcRequestAttributeSize(t *testing.T) {
+	s, err := calcRequestAttributeSize(MakeBooleanValue(true))
+	if err != nil {
+		t.Error(err)
+	} else if s != reqTypeSize {
+		t.Errorf("expected %d bytes for value but got %d", reqTypeSize, s)
+	}
+
+	s, err = calcRequestAttributeSize(MakeStringValue("test"))
+	if err != nil {
+		t.Error(err)
+	} else if s != reqTypeSize+reqBigCounterSize+4 {
+		t.Errorf("expected %d bytes for value but got %d", reqTypeSize+reqBigCounterSize+4, s)
+	}
+
+	s, err = calcRequestAttributeSize(MakeIntegerValue(0))
+	if err != nil {
+		t.Error(err)
+	} else if s != reqTypeSize+reqIntegerValueSize {
+		t.Errorf("expected %d bytes for value but got %d", reqTypeSize+reqIntegerValueSize, s)
+	}
+
+	s, err = calcRequestAttributeSize(MakeFloatValue(0))
+	if err != nil {
+		t.Error(err)
+	} else if s != reqTypeSize+reqFloatValueSize {
+		t.Errorf("expected %d bytes for value but got %d", reqTypeSize+reqFloatValueSize, s)
+	}
+
+	s, err = calcRequestAttributeSize(MakeAddressValue(net.ParseIP("192.0.2.1")))
+	if err != nil {
+		t.Error(err)
+	} else if s != reqTypeSize+reqIPv4AddressValueSize {
+		t.Errorf("expected %d bytes for value but got %d", reqTypeSize+reqIPv4AddressValueSize, s)
+	}
+
+	s, err = calcRequestAttributeSize(MakeNetworkValue(makeTestNetwork("192.0.2.0/24")))
+	if err != nil {
+		t.Error(err)
+	} else if s != reqTypeSize+reqIPv4AddressValueSize+reqNetworkCIDRSize {
+		t.Errorf("expected %d bytes for value but got %d",
+			reqTypeSize+reqIPv4AddressValueSize+reqNetworkCIDRSize, s)
+	}
+
+	s, err = calcRequestAttributeSize(MakeDomainValue(makeTestDomain("example.com")))
+	if err != nil {
+		t.Error(err)
+	} else if s != reqTypeSize+reqBigCounterSize+11 {
+		t.Errorf("expected %d bytes for value but got %d", reqTypeSize+reqBigCounterSize+11, s)
+	}
+
+	s, err = calcRequestAttributeSize(MakeSetOfStringsValue(newStrTree("one", "two", "three")))
+	if err != nil {
+		t.Error(err)
+	} else if s != reqTypeSize+4*reqBigCounterSize+3+3+5 {
+		t.Errorf("expected %d bytes for value but got %d", reqTypeSize+4*reqBigCounterSize+3+3+5, s)
+	}
+
+	s, err = calcRequestAttributeSize(MakeSetOfNetworksValue(newIPTree(
+		makeTestNetwork("192.0.2.0/24"),
+		makeTestNetwork("2001:db8::/32"),
+		makeTestNetwork("192.0.2.16/28"),
+	)))
+	if err != nil {
+		t.Error(err)
+	} else if s != reqTypeSize+
+		reqBigCounterSize+
+		2*(reqIPv4AddressValueSize+reqNetworkCIDRSize)+
+		reqIPv6AddressValueSize+reqNetworkCIDRSize {
+		t.Errorf("expected %d bytes for value but got %d",
+			reqTypeSize+
+				reqBigCounterSize+
+				2*(reqIPv4AddressValueSize+reqNetworkCIDRSize)+
+				reqIPv6AddressValueSize+reqNetworkCIDRSize,
+			s)
+	}
+
+	s, err = calcRequestAttributeSize(MakeSetOfDomainsValue(newDomainTree(
+		makeTestDomain("example.com"),
+		makeTestDomain("example.gov"),
+		makeTestDomain("www.example.com"),
+	)))
+	if err != nil {
+		t.Error(err)
+	} else if s != reqTypeSize+4*reqBigCounterSize+2*11+15 {
+		t.Errorf("expected %d bytes for value but got %d", reqTypeSize+4*reqBigCounterSize+2*11+15, s)
+	}
+
+	s, err = calcRequestAttributeSize(MakeListOfStringsValue([]string{"one", "two", "three"}))
+	if err != nil {
+		t.Error(err)
+	} else if s != reqTypeSize+4*reqBigCounterSize+3+3+5 {
+		t.Errorf("expected %d bytes for value but got %d", reqTypeSize+4*reqBigCounterSize+3+3+5, s)
+	}
+
+	s, err = calcRequestAttributeSize(UndefinedValue)
+	if err == nil {
+		t.Errorf("expected requestAttributeMarshallingNotImplementedError but got %d bytes in request", s)
+	} else if _, ok := err.(*requestAttributeMarshallingNotImplementedError); !ok {
+		t.Errorf("expected *requestAttributeMarshallingNotImplementedError but got %T (%s)", err, err)
+	}
+}
+
+func TestCalcRequestAttributeNameSize(t *testing.T) {
+	s, err := calcRequestAttributeNameSize("test")
+	if err != nil {
+		t.Error(err)
+	} else if s != reqSmallCounterSize+4 {
+		t.Errorf("expected %d bytes for value but got %d", reqSmallCounterSize+4, s)
+	}
+
+	s, err = calcRequestAttributeNameSize(
+		"01234567890123456789012345678901234567890123456789012345678901234567890123456789" +
+			"01234567890123456789012345678901234567890123456789012345678901234567890123456789" +
+			"01234567890123456789012345678901234567890123456789012345678901234567890123456789" +
+			"0123456789012345",
+	)
+	if err == nil {
+		t.Errorf("expected *requestTooLongAttributeNameError for long name but got %d bytes in request", s)
+	} else if _, ok := err.(*requestTooLongAttributeNameError); !ok {
+		t.Errorf("expected *requestTooLongAttributeNameError but got %T (%s)", err, err)
+	}
+}
+
+func TestCalcRequestAttributeStringSize(t *testing.T) {
+	s, err := calcRequestAttributeStringSize("test")
+	if err != nil {
+		t.Error(err)
+	} else if s != reqBigCounterSize+4 {
+		t.Errorf("expected %d bytes for value but got %d", reqBigCounterSize+4, s)
+	}
+
+	s, err = calcRequestAttributeStringSize(string(make([]byte, math.MaxUint16+1)))
+	if err == nil {
+		t.Errorf("expected *requestTooLongStringValueError but got %d bytes in request", s)
+	} else if _, ok := err.(*requestTooLongStringValueError); !ok {
+		t.Errorf("expected *requestTooLongStringValueError but got %T (%s)", err, err)
+	}
+}
+
+func TestCalcRequestAttributeIntegerSize(t *testing.T) {
+	s, err := calcRequestAttributeIntegerSize(0)
+	if err != nil {
+		t.Error(err)
+	} else if s != reqIntegerValueSize {
+		t.Errorf("expected %d bytes for value but got %d", reqIntegerValueSize, s)
+	}
+}
+
+func TestCalcRequestAttributeFloatSize(t *testing.T) {
+	s, err := calcRequestAttributeFloatSize(0)
+	if err != nil {
+		t.Error(err)
+	} else if s != reqFloatValueSize {
+		t.Errorf("expected %d bytes for value but got %d", reqFloatValueSize, s)
+	}
+}
+
+func TestCalcRequestAttributeAddressSize(t *testing.T) {
+	s, err := calcRequestAttributeAddressSize(net.ParseIP("192.0.2.1"))
+	if err != nil {
+		t.Error(err)
+	} else if s != reqIPv4AddressValueSize {
+		t.Errorf("expected %d bytes for value but got %d", reqIPv4AddressValueSize, s)
+	}
+
+	s, err = calcRequestAttributeAddressSize(net.ParseIP("2001:db8::1"))
+	if err != nil {
+		t.Error(err)
+	} else if s != reqIPv6AddressValueSize {
+		t.Errorf("expected %d bytes for value but got %d", reqIPv6AddressValueSize, s)
+	}
+
+	s, err = calcRequestAttributeAddressSize(net.IP([]byte{0, 1, 2, 3, 4, 5, 6, 7}))
+	if err == nil {
+		t.Errorf("expected *requestAddressValueError but got %d bytes in request", s)
+	} else if _, ok := err.(*requestAddressValueError); !ok {
+		t.Errorf("expected *requestAddressValueError but got %T (%s)", err, err)
+	}
+}
+
+func TestCalcRequestAttributeNetworkSize(t *testing.T) {
+	s, err := calcRequestAttributeNetworkSize(makeTestNetwork("192.0.2.0/24"))
+	if err != nil {
+		t.Error(err)
+	} else if s != reqIPv4AddressValueSize+reqNetworkCIDRSize {
+		t.Errorf("expected %d bytes for value but got %d", reqIPv4AddressValueSize+reqNetworkCIDRSize, s)
+	}
+
+	s, err = calcRequestAttributeNetworkSize(makeTestNetwork("2001:db8::/32"))
+	if err != nil {
+		t.Error(err)
+	} else if s != reqIPv6AddressValueSize+reqNetworkCIDRSize {
+		t.Errorf("expected %d bytes for value but got %d", reqIPv6AddressValueSize+reqNetworkCIDRSize, s)
+	}
+
+	s, err = calcRequestAttributeNetworkSize(nil)
+	if err == nil {
+		t.Errorf("expected *requestInvalidNetworkValueError but got %d bytes in request", s)
+	} else if _, ok := err.(*requestInvalidNetworkValueError); !ok {
+		t.Errorf("expected *requestInvalidNetworkValueError but got %T (%s)", err, err)
+	}
+
+	s, err = calcRequestAttributeNetworkSize(&net.IPNet{
+		IP:   net.IP([]byte{0, 1, 2, 3, 4, 5, 6, 7}),
+		Mask: net.IPv4Mask(255, 255, 255, 0),
+	})
+	if err == nil {
+		t.Errorf("expected *requestInvalidNetworkValueError but got %d bytes in request", s)
+	} else if _, ok := err.(*requestInvalidNetworkValueError); !ok {
+		t.Errorf("expected *requestInvalidNetworkValueError but got %T (%s)", err, err)
+	}
+
+	s, err = calcRequestAttributeNetworkSize(&net.IPNet{
+		IP:   net.ParseIP("192.0.2.0").To4(),
+		Mask: net.IPMask([]byte{0, 1, 2, 3, 4, 5, 6, 7}),
+	})
+	if err == nil {
+		t.Errorf("expected *requestInvalidNetworkValueError but got %d bytes in request", s)
+	} else if _, ok := err.(*requestInvalidNetworkValueError); !ok {
+		t.Errorf("expected *requestInvalidNetworkValueError but got %T (%s)", err, err)
+	}
+}
+
+func TestCalcRequestAttributeDomainSize(t *testing.T) {
+	s, err := calcRequestAttributeDomainSize(makeTestDomain("www.example.com"))
+	if err != nil {
+		t.Error(err)
+	} else if s != reqBigCounterSize+15 {
+		t.Errorf("expected %d bytes for value but got %d", reqBigCounterSize+15, s)
+	}
+}
+
+func TestCalcRequestAttributeSetOfStringsSize(t *testing.T) {
+	s, err := calcRequestAttributeSetOfStringsSize(newStrTree("one", "two", "three"))
+	if err != nil {
+		t.Error(err)
+	} else if s != 4*reqBigCounterSize+3+3+5 {
+		t.Errorf("expected %d bytes for value but got %d", 4*reqBigCounterSize+3+3+5, s)
+	}
+
+	ss := strtree.NewTree()
+	for i := 0; i < math.MaxUint16+1; i++ {
+		ss.InplaceInsert(strconv.Itoa(i), i)
+	}
+
+	s, err = calcRequestAttributeSetOfStringsSize(ss)
+	if err == nil {
+		t.Errorf("expected *requestTooLongCollectionValueError but got %d bytes in request", s)
+	} else if _, ok := err.(*requestTooLongCollectionValueError); !ok {
+		t.Errorf("expected *requestTooLongCollectionValueError but got %T (%s)", err, err)
+	}
+
+	s, err = calcRequestAttributeSetOfStringsSize(newStrTree("one", "two", string(make([]byte, math.MaxUint16+1))))
+	if err == nil {
+		t.Errorf("expected *requestTooLongStringValueError but got %d bytes in request", s)
+	} else if _, ok := err.(*requestTooLongStringValueError); !ok {
+		t.Errorf("expected *requestTooLongStringValueError but got %T (%s)", err, err)
+	}
+}
+
+func TestCalcRequestAttributeSetOfNetworksSize(t *testing.T) {
+	s, err := calcRequestAttributeSetOfNetworksSize(newIPTree(
+		makeTestNetwork("192.0.2.0/24"),
+		makeTestNetwork("2001:db8::/32"),
+		makeTestNetwork("192.0.2.16/28"),
+	))
+	if err != nil {
+		t.Error(err)
+	} else if s != reqBigCounterSize+
+		2*(reqIPv4AddressValueSize+reqNetworkCIDRSize)+
+		reqIPv6AddressValueSize+reqNetworkCIDRSize {
+		t.Errorf("expected %d bytes for value but got %d",
+			reqBigCounterSize+
+				2*(reqIPv4AddressValueSize+reqNetworkCIDRSize)+
+				reqIPv6AddressValueSize+reqNetworkCIDRSize,
+			s)
+	}
+
+	sn := iptree.NewTree()
+	var ip [4]byte
+	for i := 0; i < math.MaxUint16+1; i++ {
+		binary.BigEndian.PutUint32(ip[:], uint32(i+1))
+		ip[0] = 127
+		sn.InplaceInsertIP(net.IP(ip[:]), i)
+	}
+
+	s, err = calcRequestAttributeSetOfNetworksSize(sn)
+	if err == nil {
+		t.Errorf("expected *requestTooLongCollectionValueError but got %d bytes in request", s)
+	} else if _, ok := err.(*requestTooLongCollectionValueError); !ok {
+		t.Errorf("expected *requestTooLongCollectionValueError but got %T (%s)", err, err)
+	}
+}
+
+func TestCalcRequestAttributeSetOfDomainsSize(t *testing.T) {
+	s, err := calcRequestAttributeSetOfDomainsSize(newDomainTree(
+		makeTestDomain("example.com"),
+		makeTestDomain("example.gov"),
+		makeTestDomain("www.example.com"),
+	))
+	if err != nil {
+		t.Error(err)
+	} else if s != 4*reqBigCounterSize+2*11+15 {
+		t.Errorf("expected %d bytes for value but got %d", 4*reqBigCounterSize+2*11+15, s)
+	}
+
+	sd := new(domaintree.Node)
+	for i := 0; i < math.MaxUint16+1; i++ {
+		sd.InplaceInsert(makeTestDomain(strconv.Itoa(i)+".com"), i)
+	}
+
+	s, err = calcRequestAttributeSetOfDomainsSize(sd)
+	if err == nil {
+		t.Errorf("expected *requestTooLongCollectionValueError but got %d bytes in request", s)
+	} else if _, ok := err.(*requestTooLongCollectionValueError); !ok {
+		t.Errorf("expected *requestTooLongCollectionValueError but got %T (%s)", err, err)
+	}
+}
+
+func TestCalcRequestAttributeListOfStringsSize(t *testing.T) {
+	s, err := calcRequestAttributeListOfStringsSize([]string{"one", "two", "three"})
+	if err != nil {
+		t.Error(err)
+	} else if s != 4*reqBigCounterSize+3+3+5 {
+		t.Errorf("expected %d bytes for value but got %d", 4*reqBigCounterSize+3+3+5, s)
+	}
+
+	ls := make([]string, math.MaxUint16+1)
+	for i := range ls {
+		ls[i] = strconv.Itoa(i)
+	}
+
+	s, err = calcRequestAttributeListOfStringsSize(ls)
+	if err == nil {
+		t.Errorf("expected *requestTooLongCollectionValueError but got %d bytes in request", s)
+	} else if _, ok := err.(*requestTooLongCollectionValueError); !ok {
+		t.Errorf("expected *requestTooLongCollectionValueError but got %T (%s)", err, err)
+	}
+
+	s, err = calcRequestAttributeListOfStringsSize([]string{"one", "two", string(make([]byte, math.MaxUint16+1))})
+	if err == nil {
+		t.Errorf("expected *requestTooLongStringValueError but got %d bytes in request", s)
 	} else if _, ok := err.(*requestTooLongStringValueError); !ok {
 		t.Errorf("expected *requestTooLongStringValueError but got %T (%s)", err, err)
 	}

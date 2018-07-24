@@ -1042,7 +1042,7 @@ errors:
   args:
   - field: t
 
-- id: requestAttributeMarshallingNotImplemented
+- id: requestAttributeMarshallingNotImplementedError
   fields:
   - id: t
     type: Type
@@ -1050,7 +1050,7 @@ errors:
   args:
   - field: t
 
-- id: requestAttributeUnmarshallingNotImplemented
+- id: requestAttributeUnmarshallingNotImplementedError
   fields:
   - id: t
     type: int

@@ -809,7 +809,7 @@ func init() {
 	for i := range rawRequests {
 		b := make([]byte, 128)
 
-		m, err := makeRequest(testRequest3Keys{
+		m, err := makeRequestWithBuffer(testRequest3Keys{
 			k1: directionOpts[rand.Intn(len(directionOpts))],
 			k2: policySetOpts[rand.Intn(len(policySetOpts))],
 			k3: domainOpts[rand.Intn(len(domainOpts))],
@@ -823,8 +823,8 @@ func init() {
 
 }
 
-func benchmarkPolicySet(name, p string, b *testing.B) {
-	pdpServer, _, c := startPDPServer(p, nil, b)
+func benchmarkPolicySet(name, p string, b *testing.B, opts ...Option) {
+	pdpServer, _, c := startPDPServer(p, nil, b, opts...)
 	defer func() {
 		c.Close()
 		if logs := pdpServer.Stop(); len(logs) > 0 {
@@ -849,16 +849,11 @@ func benchmarkPolicySet(name, p string, b *testing.B) {
 	})
 }
 
-func BenchmarkOneStagePolicySet(b *testing.B) {
+func BenchmarkStagesPolicySet(b *testing.B) {
 	benchmarkPolicySet("OneStagePolicySet", oneStageBenchmarkPolicySet, b)
-}
-
-func BenchmarkTwoStagePolicySet(b *testing.B) {
 	benchmarkPolicySet("TwoStagePolicySet", twoStageBenchmarkPolicySet, b)
-}
-
-func BenchmarkThreeStagePolicySet(b *testing.B) {
 	benchmarkPolicySet("ThreeStagePolicySet", threeStageBenchmarkPolicySet, b)
+	benchmarkPolicySet("AutoRequestSize", threeStageBenchmarkPolicySet, b, WithAutoRequestSize(true))
 }
 
 func BenchmarkUnaryRaw(b *testing.B) {
@@ -941,7 +936,53 @@ func BenchmarkUnaryWithCache(b *testing.B) {
 	})
 }
 
-func benchmarkStreamingClient(name string, ports []uint16, b *testing.B, opts ...Option) {
+func benchmarkStreamingClient(name string, b *testing.B, opts ...Option) {
+	streams := 96
+
+	opts = append(opts,
+		WithStreams(streams),
+	)
+	pdpSrv, _, c := startPDPServer(threeStageBenchmarkPolicySet, nil, b, opts...)
+	defer func() {
+		c.Close()
+		if logs := pdpSrv.Stop(); len(logs) > 0 {
+			b.Logf("primary server logs:\n%s", logs)
+		}
+	}()
+
+	b.Run(name, func(b *testing.B) {
+		assignments := make(chan []pdp.AttributeAssignment, streams)
+		for i := 0; i < cap(assignments); i++ {
+			assignments <- make([]pdp.AttributeAssignment, 16)
+		}
+
+		th := make(chan int, streams)
+		for n := 0; n < b.N; n++ {
+			th <- 0
+			go func(i int) {
+				defer func() { <-th }()
+
+				var out pdp.Response
+
+				assignment := <-assignments
+				defer func() { assignments <- assignment }()
+				out.Obligations = assignment
+
+				c.Validate(decisionRequests[i%len(decisionRequests)], &out)
+				if err := assertBenchMsg(&out, "%q request %d", name, i); err != nil {
+					panic(err)
+				}
+			}(n)
+		}
+	})
+}
+
+func BenchmarkStreamingRequestSize(b *testing.B) {
+	benchmarkStreamingClient("StreamingFixedRequestSize", b)
+	benchmarkStreamingClient("StreamingAutoRequestSize", b, WithAutoRequestSize(true))
+}
+
+func benchmarkRawStreamingClient(name string, ports []uint16, b *testing.B, opts ...Option) {
 	if len(ports) != 0 && len(ports) != 2 {
 		b.Fatalf("only 0 for single PDP and 2 for 2 PDP ports supported but got %d", len(ports))
 	}
@@ -991,12 +1032,9 @@ func benchmarkStreamingClient(name string, ports []uint16, b *testing.B, opts ..
 	})
 }
 
-func BenchmarkStreamingClient(b *testing.B) {
-	benchmarkStreamingClient("StreamingClient", nil, b)
-}
-
-func BenchmarkRoundRobinStreamingClient(b *testing.B) {
-	benchmarkStreamingClient("RoundRobinStreamingClient",
+func BenchmarkRawStreamingClient(b *testing.B) {
+	benchmarkRawStreamingClient("StreamingClient", nil, b)
+	benchmarkRawStreamingClient("RoundRobinStreamingClient",
 		[]uint16{
 			5555,
 			5556,
@@ -1004,10 +1042,7 @@ func BenchmarkRoundRobinStreamingClient(b *testing.B) {
 		b,
 		WithRoundRobinBalancer("127.0.0.1:5555", "127.0.0.1:5556"),
 	)
-}
-
-func BenchmarkHotSpotStreamingClient(b *testing.B) {
-	benchmarkStreamingClient("HotSpotStreamingClient",
+	benchmarkRawStreamingClient("HotSpotStreamingClient",
 		[]uint16{
 			5555,
 			5556,
@@ -1017,7 +1052,7 @@ func BenchmarkHotSpotStreamingClient(b *testing.B) {
 	)
 }
 
-func BenchmarkStreamingClientWithCache(b *testing.B) {
+func BenchmarkRawStreamingClientWithCache(b *testing.B) {
 	streams := 96
 
 	pdpServer, _, c := startPDPServer(threeStageBenchmarkPolicySet, nil, b,
@@ -1032,7 +1067,7 @@ func BenchmarkStreamingClientWithCache(b *testing.B) {
 		}
 	}()
 
-	name := "StreamingClientWithCache"
+	name := "RawStreamingClientWithCache"
 
 	cc := 10 * streams
 	var (
@@ -1076,6 +1111,123 @@ func BenchmarkStreamingClientWithCache(b *testing.B) {
 			}(n)
 		}
 	})
+}
+
+func benchmarkStreamingClientWithCache(name string, b *testing.B, opts ...Option) {
+	streams := 96
+
+	opts = append(opts,
+		WithStreams(streams),
+		WithMaxRequestSize(128),
+		WithCacheTTL(15*time.Minute),
+	)
+
+	pdpServer, _, c := startPDPServer(threeStageBenchmarkPolicySet, nil, b, opts...)
+	defer func() {
+		c.Close()
+		if logs := pdpServer.Stop(); len(logs) > 0 {
+			b.Logf("server logs:\n%s", logs)
+		}
+	}()
+
+	cc := 10 * streams
+	var (
+		out        pdp.Response
+		assignment [16]pdp.AttributeAssignment
+	)
+	for n := 0; n < cc; n++ {
+		in := decisionRequests[n%cc]
+
+		out.Obligations = assignment[:]
+		c.Validate(in, &out)
+
+		err := assertBenchMsg(&out, "%q request %d", name, n)
+		if err != nil {
+			b.Fatal(err)
+		}
+	}
+
+	b.Run(name, func(b *testing.B) {
+		assignments := make(chan []pdp.AttributeAssignment, streams)
+		for i := 0; i < cap(assignments); i++ {
+			assignments <- make([]pdp.AttributeAssignment, 16)
+		}
+
+		th := make(chan int, streams)
+		for n := 0; n < b.N; n++ {
+			th <- 0
+			go func(i int) {
+				defer func() { <-th }()
+
+				var out pdp.Response
+
+				assignment := <-assignments
+				defer func() { assignments <- assignment }()
+				out.Obligations = assignment
+
+				c.Validate(decisionRequests[i%cc], &out)
+				if err := assertBenchMsg(&out, "%q request %d", name, i); err != nil {
+					panic(err)
+				}
+			}(n)
+		}
+	})
+}
+
+func BenchmarkStreamingClientWithCache(b *testing.B) {
+	benchmarkStreamingClientWithCache("FixedRequestSize", b)
+	benchmarkStreamingClientWithCache("AutoRequestSize", b, WithAutoRequestSize(true))
+}
+
+func benchmarkAutoResponseServer(name string, b *testing.B, opts ...Option) {
+	streams := 96
+
+	opts = append(opts,
+		WithStreams(streams),
+	)
+	pdpSrv, c := startPDPServerWithAutoResponse(threeStageBenchmarkPolicySet, b, opts...)
+	defer func() {
+		c.Close()
+		if logs := pdpSrv.Stop(); len(logs) > 0 {
+			b.Logf("primary server logs:\n%s", logs)
+		}
+	}()
+
+	b.Run(name, func(b *testing.B) {
+		assignments := make(chan []pdp.AttributeAssignment, streams)
+		for i := 0; i < cap(assignments); i++ {
+			assignments <- make([]pdp.AttributeAssignment, 16)
+		}
+
+		th := make(chan int, streams)
+		for n := 0; n < b.N; n++ {
+			th <- 0
+			go func(i int) {
+				defer func() { <-th }()
+
+				var out pdp.Response
+
+				assignment := <-assignments
+				defer func() { assignments <- assignment }()
+				out.Obligations = assignment
+
+				c.Validate(rawRequests[i%len(rawRequests)], &out)
+				if err := assertBenchMsg(&out, "%q request %d", name, i); err != nil {
+					panic(err)
+				}
+			}(n)
+		}
+	})
+}
+
+func BenchmarkAutoResponseServer(b *testing.B) {
+	benchmarkAutoResponseServer("StreamingClient", b)
+	benchmarkAutoResponseServer("RoundRobinStreamingClient", b,
+		WithRoundRobinBalancer("127.0.0.1:5555"),
+	)
+	benchmarkAutoResponseServer("HotSpotStreamingClient", b,
+		WithHotSpotBalancer("127.0.0.1:5555"),
+	)
 }
 
 func waitForPortOpened(address string) error {
@@ -1141,6 +1293,51 @@ func newServer(opts ...server.Option) *loggedServer {
 func (s *loggedServer) Stop() string {
 	s.s.Stop()
 	return s.b.String()
+}
+
+func startPDPServerWithAutoResponse(p string, b *testing.B, opts ...Option) (*loggedServer, Client) {
+	service := "127.0.0.1:5555"
+
+	s := newServer(
+		server.WithServiceAt(service),
+		server.WithAutoResponseSize(true),
+	)
+
+	if err := s.s.ReadPolicies(strings.NewReader(p)); err != nil {
+		b.Fatalf("can't read policies: %s", err)
+	}
+
+	if err := s.s.ReadContent(strings.NewReader(benchmarkContent)); err != nil {
+		b.Fatalf("can't read content: %s", err)
+	}
+
+	if err := waitForPortClosed(service); err != nil {
+		b.Fatalf("port still in use: %s", err)
+	}
+	go func() {
+		if err := s.s.Serve(); err != nil {
+			b.Fatalf("primary server failed: %s", err)
+		}
+	}()
+
+	if err := waitForPortOpened(service); err != nil {
+		if logs := s.Stop(); len(logs) > 0 {
+			b.Logf("primary server logs:\n%s", logs)
+		}
+
+		b.Fatalf("can't connect to PDP server: %s", err)
+	}
+
+	c := NewClient(opts...)
+	if err := c.Connect(service); err != nil {
+		if logs := s.Stop(); len(logs) > 0 {
+			b.Logf("primary server logs:\n%s", logs)
+		}
+
+		b.Fatalf("can't connect to PDP server: %s", err)
+	}
+
+	return s, c
 }
 
 func startPDPServer(p string, ports []uint16, b *testing.B, opts ...Option) (*loggedServer, *loggedServer, Client) {

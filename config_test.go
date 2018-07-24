@@ -15,19 +15,21 @@ func TestPolicyConfigParse(t *testing.T) {
 		input string
 		err   error
 
-		endpoints   []string
-		options     map[uint16][]*edns0Opt
-		debugSuffix *string
-		streams     *int
-		hotSpot     *bool
-		custAttrs   map[string]custAttr
-		debugID     *string
-		passthrough []string
-		connTimeout *time.Duration
-		maxReqSize  *int
-		maxResAttrs *int
-		cacheTTL    *time.Duration
-		cacheLimit  *int
+		endpoints    []string
+		options      map[uint16][]*edns0Opt
+		debugSuffix  *string
+		streams      *int
+		hotSpot      *bool
+		custAttrs    map[string]custAttr
+		debugID      *string
+		passthrough  []string
+		connTimeout  *time.Duration
+		autoReqSize  *bool
+		maxReqSize   *int
+		autoResAttrs *bool
+		maxResAttrs  *int
+		cacheTTL     *time.Duration
+		cacheLimit   *int
 	}{
 		{
 			desc: "MissingPolicySection",
@@ -517,7 +519,30 @@ func TestPolicyConfigParse(t *testing.T) {
 							max_request_size 128
 						}
 					}`,
-			maxReqSize: newIntPtr(128),
+			autoReqSize: newBoolPtr(false),
+			maxReqSize:  newIntPtr(128),
+		},
+		{
+			desc: "MaxRequestSize",
+			input: `.:53 {
+						policy {
+							endpoint 10.2.4.1:5555
+							max_request_size auto
+						}
+					}`,
+			autoReqSize: newBoolPtr(true),
+			maxReqSize:  newIntPtr(-1),
+		},
+		{
+			desc: "MaxRequestSize",
+			input: `.:53 {
+						policy {
+							endpoint 10.2.4.1:5555
+							max_request_size auto 128
+						}
+					}`,
+			autoReqSize: newBoolPtr(true),
+			maxReqSize:  newIntPtr(128),
 		},
 		{
 			desc: "NoMaxRequestSizeArguments",
@@ -557,7 +582,19 @@ func TestPolicyConfigParse(t *testing.T) {
 							max_response_attributes 128
 						}
 					}`,
-			maxResAttrs: newIntPtr(128),
+			autoResAttrs: newBoolPtr(false),
+			maxResAttrs:  newIntPtr(128),
+		},
+		{
+			desc: "MaxResponseAttributes",
+			input: `.:53 {
+						policy {
+							endpoint 10.2.4.1:5555
+							max_response_attributes auto
+						}
+					}`,
+			autoResAttrs: newBoolPtr(true),
+			maxResAttrs:  newIntPtr(64),
 		},
 		{
 			desc: "NoMaxResponseAttributesArguments",
@@ -795,8 +832,18 @@ func TestPolicyConfigParse(t *testing.T) {
 						t.Errorf("Expected connection timeout %s but got %s", *test.connTimeout, mw.conf.connTimeout)
 					}
 
+					if test.autoReqSize != nil && *test.autoReqSize != mw.conf.autoReqSize {
+						t.Errorf("Expected automatic request size %v but got %v",
+							*test.autoReqSize, mw.conf.autoReqSize)
+					}
+
 					if test.maxReqSize != nil && *test.maxReqSize != mw.conf.maxReqSize {
 						t.Errorf("Expected request size limit %d but got %d", *test.maxReqSize, mw.conf.maxReqSize)
+					}
+
+					if test.autoResAttrs != nil && *test.autoResAttrs != mw.conf.autoResAttrs {
+						t.Errorf("Expected automatic response attributes %v but got %v",
+							*test.autoResAttrs, mw.conf.autoResAttrs)
 					}
 
 					if test.maxResAttrs != nil && *test.maxResAttrs != mw.conf.maxResAttrs {

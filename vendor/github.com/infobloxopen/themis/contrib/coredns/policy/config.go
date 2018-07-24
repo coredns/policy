@@ -14,20 +14,22 @@ import (
 var errInvalidOption = errors.New("invalid policy plugin option")
 
 type config struct {
-	endpoints   []string
-	options     map[uint16][]*edns0Opt
-	custAttrs   map[string]custAttr
-	debugID     string
-	debugSuffix string
-	streams     int
-	hotSpot     bool
-	passthrough []string
-	connTimeout time.Duration
-	maxReqSize  int
-	maxResAttrs int
-	log         bool
-	cacheTTL    time.Duration
-	cacheLimit  int
+	endpoints    []string
+	options      map[uint16][]*edns0Opt
+	custAttrs    map[string]custAttr
+	debugID      string
+	debugSuffix  string
+	streams      int
+	hotSpot      bool
+	passthrough  []string
+	connTimeout  time.Duration
+	autoReqSize  bool
+	maxReqSize   int
+	autoResAttrs bool
+	maxResAttrs  int
+	log          bool
+	cacheTTL     time.Duration
+	cacheLimit   int
 }
 
 func policyParse(c *caddy.Controller) (*policyPlugin, error) {
@@ -254,20 +256,33 @@ func (conf *config) parseLog(c *caddy.Controller) error {
 
 func (conf *config) parseMaxRequestSize(c *caddy.Controller) error {
 	args := c.RemainingArgs()
-	if len(args) != 1 {
+	if len(args) < 1 || len(args) > 2 {
 		return c.ArgErr()
 	}
 
-	size, err := strconv.ParseUint(args[0], 10, 0)
-	if err != nil {
-		return fmt.Errorf("Could not parse PDP request size limit: %s", err)
+	s := ""
+	if strings.ToLower(args[0]) == "auto" {
+		conf.autoReqSize = true
+		if len(args) > 1 {
+			s = args[1]
+		}
+	} else {
+		s = args[0]
 	}
 
-	if size > math.MaxInt32 {
-		return fmt.Errorf("Size limit %d (> %d) for PDP request is too high", size, math.MaxInt32)
+	if len(s) > 0 {
+		size, err := strconv.ParseUint(s, 10, 0)
+		if err != nil {
+			return fmt.Errorf("Could not parse PDP request size limit: %s", err)
+		}
+
+		if size > math.MaxInt32 {
+			return fmt.Errorf("Size limit %d (> %d) for PDP request is too high", size, math.MaxInt32)
+		}
+
+		conf.maxReqSize = int(size)
 	}
 
-	conf.maxReqSize = int(size)
 	return nil
 }
 
@@ -275,6 +290,11 @@ func (conf *config) parseMaxResponseAttributes(c *caddy.Controller) error {
 	args := c.RemainingArgs()
 	if len(args) != 1 {
 		return c.ArgErr()
+	}
+
+	if strings.ToLower(args[0]) == "auto" {
+		conf.autoResAttrs = true
+		return nil
 	}
 
 	n, err := strconv.ParseUint(args[0], 10, 0)

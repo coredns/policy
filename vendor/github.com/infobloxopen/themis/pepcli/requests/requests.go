@@ -60,7 +60,7 @@ func Load(name string, size uint32) ([]pb.Msg, error) {
 		}
 
 		b := make([]byte, 10240)
-		n, err := pdp.MarshalRequestAssignments(b, attrs)
+		n, err := pdp.MarshalRequestAssignmentsToBuffer(b, attrs)
 		if err != nil {
 			return nil, fmt.Errorf("can't create request: %s", err)
 		}

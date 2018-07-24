@@ -25,6 +25,7 @@ func main() {
 		server.WithTracingAt(conf.tracingEP),
 		server.WithMemLimits(conf.mem),
 		server.WithMaxGRPCStreams(uint32(conf.maxStreams)),
+		server.WithAutoResponseSize(conf.autoResponseSize),
 		server.WithMaxResponseSize(uint32(conf.maxResponseSize)),
 		server.WithMemStatsLogging(
 			conf.memStatsLogPath,

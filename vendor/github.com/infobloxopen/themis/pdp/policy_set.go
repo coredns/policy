@@ -1,6 +1,7 @@
 package pdp
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 )
@@ -10,6 +11,7 @@ import (
 // for given policy and how to get paticular result.
 type PolicyCombiningAlg interface {
 	execute(rules []Evaluable, ctx *Context) Response
+	MarshalJSON() ([]byte, error)
 }
 
 // PolicyCombiningAlgMaker creates instance of policy combining algorithm.
@@ -291,9 +293,12 @@ func (p PolicySet) MarshalWithDepth(out io.Writer, depth int) error {
 	if depth < 0 {
 		return newMarshalInvalidDepthError(depth)
 	}
-	err := marshalHeader(storageNodeFmt{
-		Ord: p.ord,
-		ID:  p.id,
+	err := marshalHeader(storageEvalFmt{
+		Ord:         p.ord,
+		ID:          p.id,
+		Target:      p.target,
+		Obligations: p.obligations,
+		Algorithm:   p.algorithm,
 	}, out)
 	if err != nil {
 		return bindErrorf(err, "psid=\"%s\"", p.id)
@@ -348,6 +353,12 @@ func makeFirstApplicableEffectPCA(policies []Evaluable, params interface{}) Poli
 	return firstApplicableEffectPCAInstance
 }
 
+func (firstApplicableEffectPCA) MarshalJSON() ([]byte, error) {
+	return json.Marshal(algFmt{
+		Type: "firstApplicableEffectPCA",
+	})
+}
+
 func (a firstApplicableEffectPCA) execute(policies []Evaluable, ctx *Context) Response {
 	for _, p := range policies {
 		r := p.Calculate(ctx)
@@ -364,6 +375,12 @@ type denyOverridesPCA struct {
 
 func makeDenyOverridesPCA(policies []Evaluable, params interface{}) PolicyCombiningAlg {
 	return denyOverridesPCAInstance
+}
+
+func (denyOverridesPCA) MarshalJSON() ([]byte, error) {
+	return json.Marshal(algFmt{
+		Type: "denyOverridesPCA",
+	})
 }
 
 func (a denyOverridesPCA) describe() string {

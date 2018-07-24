@@ -1,6 +1,10 @@
 package pdp
 
-import "sort"
+import (
+	"encoding/json"
+	"sort"
+	"strconv"
+)
 
 type flagsMapperPCA struct {
 	argument  Expression
@@ -56,6 +60,22 @@ func (a flagsMapperPCA) execute(policies []Evaluable, ctx *Context) Response {
 	}
 
 	return a.calculateErrorPolicy(ctx, newFlagsMapperRCAArgumentTypeError(t))
+}
+
+func (a flagsMapperPCA) MarshalJSON() ([]byte, error) {
+	var defID, errID string
+	if a.def != nil {
+		defID, _ = a.def.GetID()
+	}
+	if a.err != nil {
+		errID, _ = a.err.GetID()
+	}
+	return json.Marshal(mapperAlgFmt{
+		Type:      "flagsMapperPCA",
+		Default:   strconv.Quote(defID),
+		Error:     strconv.Quote(errID),
+		Algorithm: a.algorithm,
+	})
 }
 
 func (a flagsMapperPCA) add(ID string, child, old Evaluable) PolicyCombiningAlg {

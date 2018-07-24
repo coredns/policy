@@ -1,6 +1,7 @@
 package pdp
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 )
@@ -9,6 +10,7 @@ import (
 // defines how to evaluate policy rules and how to get paticular result.
 type RuleCombiningAlg interface {
 	execute(rules []*Rule, ctx *Context) Response
+	MarshalJSON() ([]byte, error)
 }
 
 // RuleCombiningAlgMaker creates instance of rule combining algorithm.
@@ -261,9 +263,12 @@ func (p Policy) MarshalWithDepth(out io.Writer, depth int) error {
 	if depth < 0 {
 		return newMarshalInvalidDepthError(depth)
 	}
-	err := marshalHeader(storageNodeFmt{
-		Ord: p.ord,
-		ID:  p.id,
+	err := marshalHeader(storageEvalFmt{
+		Ord:         p.ord,
+		ID:          p.id,
+		Target:      p.target,
+		Obligations: p.obligations,
+		Algorithm:   p.algorithm,
 	}, out)
 	if err != nil {
 		return bindErrorf(err, "pid=\"%s\"", p.id)
@@ -321,11 +326,23 @@ func (a firstApplicableEffectRCA) execute(rules []*Rule, ctx *Context) Response 
 	return Response{EffectNotApplicable, nil, nil}
 }
 
+func (firstApplicableEffectRCA) MarshalJSON() ([]byte, error) {
+	return json.Marshal(algFmt{
+		Type: "firstApplicableEffectRCA",
+	})
+}
+
 type denyOverridesRCA struct {
 }
 
 func makeDenyOverridesRCA(rules []*Rule, params interface{}) RuleCombiningAlg {
 	return denyOverridesRCAInstance
+}
+
+func (denyOverridesRCA) MarshalJSON() ([]byte, error) {
+	return json.Marshal(algFmt{
+		Type: "denyOverridesRCA",
+	})
 }
 
 func (a denyOverridesRCA) describe() string {

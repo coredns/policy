@@ -35,6 +35,7 @@ type config struct {
 	storageEP           string
 	mem                 server.MemLimits
 	maxStreams          uint
+	autoResponseSize    bool
 	maxResponseSize     uint
 	memStatsLogPath     string
 	memStatsLogInterval time.Duration
@@ -69,6 +70,7 @@ func init() {
 	flag.StringVar(&conf.storageEP, "storage", ":5552", "storage control endpoint")
 	limit := flag.Uint64("mem-limit", 0, "memory limit in megabytes")
 	flag.UintVar(&conf.maxStreams, "max-streams", 0, "maximum number of parallel gRPC streams (0 - use gRPC default)")
+	flag.BoolVar(&conf.autoResponseSize, "auto-response", false, "automatic respose buffer allocation")
 	flag.UintVar(&conf.maxResponseSize, "max-response", 10240, "maximal response size")
 
 	flag.StringVar(&conf.memStatsLogPath, "mem-stats-log", "mem-stats.log", "file to log memory allocator statistics")

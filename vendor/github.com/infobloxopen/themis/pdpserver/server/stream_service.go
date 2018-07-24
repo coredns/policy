@@ -46,7 +46,17 @@ func (s *Server) NewValidationStream(stream pb.PDP_NewValidationStreamServer) er
 		c := s.c
 		s.RUnlock()
 
-		err = stream.Send(&pb.Msg{Body: s.rawValidate(p, c, in.Body, buffer)})
+		if s.opts.autoResponseSize {
+			err = stream.Send(&pb.Msg{Body: s.rawValidateWithAllocator(p, c, in.Body, func(n int) ([]byte, error) {
+				if len(buffer) < n {
+					buffer = make([]byte, n)
+				}
+
+				return buffer, nil
+			})})
+		} else {
+			err = stream.Send(&pb.Msg{Body: s.rawValidateToBuffer(p, c, in.Body, buffer)})
+		}
 		if err != nil {
 			s.opts.logger.WithFields(log.Fields{
 				"id":  sID,

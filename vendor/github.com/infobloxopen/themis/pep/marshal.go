@@ -230,7 +230,37 @@ var (
 	typeCacheLock = sync.RWMutex{}
 )
 
-func makeRequest(v interface{}, b []byte) (pb.Msg, error) {
+func makeRequest(v interface{}) (pb.Msg, error) {
+	switch v := v.(type) {
+	case []byte:
+		return pb.Msg{Body: v}, nil
+
+	case pb.Msg:
+		return v, nil
+
+	case *pb.Msg:
+		return *v, nil
+	}
+
+	var (
+		b   []byte
+		err error
+	)
+
+	if a, ok := v.([]pdp.AttributeAssignment); ok {
+		b, err = pdp.MarshalRequestAssignments(a)
+	} else {
+		b, err = marshalValue(reflect.ValueOf(v))
+	}
+
+	if err != nil {
+		return pb.Msg{}, err
+	}
+
+	return pb.Msg{Body: b}, nil
+}
+
+func makeRequestWithBuffer(v interface{}, b []byte) (pb.Msg, error) {
 	switch v := v.(type) {
 	case []byte:
 		return pb.Msg{Body: v}, nil
@@ -248,9 +278,9 @@ func makeRequest(v interface{}, b []byte) (pb.Msg, error) {
 	)
 
 	if a, ok := v.([]pdp.AttributeAssignment); ok {
-		n, err = pdp.MarshalRequestAssignments(b, a)
+		n, err = pdp.MarshalRequestAssignmentsToBuffer(b, a)
 	} else {
-		n, err = marshalValue(reflect.ValueOf(v), b)
+		n, err = marshalValueToBuffer(reflect.ValueOf(v), b)
 	}
 	if err != nil {
 		return pb.Msg{}, err
@@ -259,12 +289,20 @@ func makeRequest(v interface{}, b []byte) (pb.Msg, error) {
 	return pb.Msg{Body: b[:n]}, nil
 }
 
-func marshalValue(v reflect.Value, b []byte) (int, error) {
+func marshalValue(v reflect.Value) ([]byte, error) {
+	if v.Kind() != reflect.Struct {
+		return nil, ErrorInvalidSource
+	}
+
+	return marshalStruct(v, getFields(v.Type()))
+}
+
+func marshalValueToBuffer(v reflect.Value, b []byte) (int, error) {
 	if v.Kind() != reflect.Struct {
 		return 0, ErrorInvalidSource
 	}
 
-	return marshalStruct(v, getFields(v.Type()), b)
+	return marshalStructToBuffer(v, getFields(v.Type()), b)
 }
 
 func getFields(t reflect.Type) reqFieldsInfo {
@@ -322,12 +360,23 @@ func getTag(f reflect.StructField) (string, bool) {
 	return f.Tag.Lookup("pdp")
 }
 
-func marshalStruct(v reflect.Value, info reqFieldsInfo, b []byte) (int, error) {
+func marshalStruct(v reflect.Value, info reqFieldsInfo) ([]byte, error) {
+	if info.err != nil {
+		return nil, info.err
+	}
+
+	return pdp.MarshalRequestReflection(len(info.fields), func(i int) (string, pdp.Type, reflect.Value, error) {
+		f := info.fields[i]
+		return f.tag, f.at, v.Field(f.idx), nil
+	})
+}
+
+func marshalStructToBuffer(v reflect.Value, info reqFieldsInfo, b []byte) (int, error) {
 	if info.err != nil {
 		return 0, info.err
 	}
 
-	return pdp.MarshalRequestReflection(b, len(info.fields), func(i int) (string, pdp.Type, reflect.Value, error) {
+	return pdp.MarshalRequestReflectionToBuffer(b, len(info.fields), func(i int) (string, pdp.Type, reflect.Value, error) {
 		f := info.fields[i]
 		return f.tag, f.at, v.Field(f.idx), nil
 	})

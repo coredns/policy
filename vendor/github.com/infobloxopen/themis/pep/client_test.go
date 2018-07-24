@@ -58,6 +58,18 @@ func TestNewClientWithTracer(t *testing.T) {
 	}
 }
 
+func TestNewClientWithAutoRequestSize(t *testing.T) {
+	c := NewClient(WithAutoRequestSize(true))
+	uc, ok := c.(*unaryClient)
+	if !ok {
+		t.Fatalf("Expected *unaryClient from NewClient got %#v", c)
+	}
+
+	if !uc.opts.autoRequestSize {
+		t.Error("Expected auto size to be set")
+	}
+}
+
 func TestNewClientWithMaxRequestSize(t *testing.T) {
 	c := NewClient(WithMaxRequestSize(1024))
 	uc, ok := c.(*unaryClient)

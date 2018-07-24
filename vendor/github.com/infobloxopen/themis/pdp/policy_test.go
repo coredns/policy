@@ -764,7 +764,7 @@ func TestPolicyMarshalWithDepth(t *testing.T) {
 	}
 
 	// depth = 0, visible policy
-	expectMarshal := `{"ord":0,"id":"test","rules":[]}`
+	expectMarshal := `{"ord":0,"id":"test","target":{},"obligations":null,"algorithm":{"type":"firstApplicableEffectRCA"},"rules":[]}`
 	err = p.MarshalWithDepth(&buf, 0)
 	if err != nil {
 		t.Errorf("Expecting no error, got %v", err)
@@ -776,8 +776,9 @@ func TestPolicyMarshalWithDepth(t *testing.T) {
 	}
 
 	// show children, visible policy
-	expectChildren := `{"ord":0,"id":"first"},{"ord":1,"id":"second"},{"ord":2,"id":"third"}`
-	expectWithC := `{"ord":0,"id":"test","rules":[` + expectChildren + `]}`
+	expectChild := `{"ord":%d,"id":"%s","target":{},"obligations":null,"effect":"Permit"}`
+	expectChildren := fmt.Sprintf(expectChild, 0, "first") + "," + fmt.Sprintf(expectChild, 1, "second") + "," + fmt.Sprintf(expectChild, 2, "third")
+	expectWithC := `{"ord":0,"id":"test","target":{},"obligations":null,"algorithm":{"type":"firstApplicableEffectRCA"},"rules":[` + expectChildren + `]}`
 	err = p.MarshalWithDepth(&buf2, 1)
 	if err != nil {
 		t.Errorf("Expecting no error, got %v", err)

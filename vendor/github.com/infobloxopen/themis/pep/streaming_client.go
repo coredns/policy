@@ -41,12 +41,17 @@ func newStreamingClient(opts options) *streamingClient {
 	state := scsDisconnected
 	counter := uint64(0)
 
-	return &streamingClient{
+	c := &streamingClient{
 		opts:    opts,
 		state:   &state,
 		counter: &counter,
-		pool:    makeBytePool(int(opts.maxRequestSize), opts.noPool),
 	}
+
+	if !opts.autoRequestSize {
+		c.pool = makeBytePool(int(opts.maxRequestSize), opts.noPool)
+	}
+
+	return c
 }
 
 func (c *streamingClient) Connect(addr string) error {
@@ -105,16 +110,25 @@ func (c *streamingClient) Close() {
 }
 
 func (c *streamingClient) Validate(in, out interface{}) error {
-	var b []byte
-	switch in.(type) {
-	default:
-		b = c.pool.Get()
-		defer c.pool.Put(b)
+	var (
+		m   pb.Msg
+		err error
+	)
 
-	case []byte, pb.Msg, *pb.Msg:
+	if c.opts.autoRequestSize {
+		m, err = makeRequest(in)
+	} else {
+		var b []byte
+		switch in.(type) {
+		default:
+			b = c.pool.Get()
+			defer c.pool.Put(b)
+
+		case []byte, pb.Msg, *pb.Msg:
+		}
+
+		m, err = makeRequestWithBuffer(in, b)
 	}
-
-	m, err := makeRequest(in, b)
 	if err != nil {
 		return err
 	}

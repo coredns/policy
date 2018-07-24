@@ -1,59 +1,97 @@
 package pep
 
 import (
-	"fmt"
 	"golang.org/x/net/context"
 
+	"github.com/allegro/bigcache"
 	pb "github.com/infobloxopen/themis/pdp-service"
 	ps "github.com/infobloxopen/themis/pdpserver/server"
 )
 
 type builtinClient struct {
-	s    *ps.PDPService
+	s *ps.PDPService
+
 	pool bytePool
+
+	cache *bigcache.BigCache
+
+	opts options
 }
 
-func NewBuiltinClient(policyFile string, contentFiles []string) *builtinClient {
-	fmt.Printf("pep client NewBuiltinClient() called..........\n")
-	s := ps.NewBuiltinPDPService(policyFile, contentFiles)
-	return &builtinClient{
-		s: s,
-		pool: makeBytePool(10240, true),
+func newBuiltinClient(opts options) *builtinClient {
+	s := ps.NewBuiltinPDPService(opts.policyFile, opts.contentFiles)
+	c := &builtinClient{
+		s:    s,
+		opts: opts,
 	}
+
+	if !opts.autoRequestSize {
+		c.pool = makeBytePool(int(opts.maxRequestSize), opts.noPool)
+	}
+
+	return c
 }
 
 func (c *builtinClient) Connect(addr string) error {
-	fmt.Printf("pep client Connect() called..........\n")
+	cache, err := newCacheFromOptions(c.opts)
+	if err != nil {
+		return err
+	}
+	c.cache = cache
+
 	return nil
 }
 
 func (c *builtinClient) Close() {
-	fmt.Printf("pep client Close() called..........\n")
+	if c.cache != nil {
+		c.cache.Reset()
+		c.cache = nil
+	}
+
+	c.s = nil
 }
 
 func (c *builtinClient) Validate(in, out interface{}) error {
-	fmt.Printf("pep client Validate() called..........\n")
 	if c.s == nil {
 		return ErrorNotConnected
 	}
 
-	var b []byte
-	switch in.(type) {
-	default:
-		b = c.pool.Get()
-		defer c.pool.Put(b)
+	var (
+		req pb.Msg
+		err error
+	)
 
-	case []byte, pb.Msg, *pb.Msg:
+	if c.opts.autoRequestSize {
+		req, err = makeRequest(in)
+	} else {
+		var b []byte
+		switch in.(type) {
+		default:
+			b = c.pool.Get()
+			defer c.pool.Put(b)
+
+		case []byte, pb.Msg, *pb.Msg:
+		}
+
+		req, err = makeRequestWithBuffer(in, b)
 	}
-
-	req, err := makeRequest(in, b)
 	if err != nil {
 		return err
+	}
+
+	if c.cache != nil {
+		if b, err := c.cache.Get(string(req.Body)); err == nil {
+			return fillResponse(pb.Msg{Body: b}, out)
+		}
 	}
 
 	res, err := c.s.Validate(context.Background(), &req)
 	if err != nil {
 		return err
+	}
+
+	if c.cache != nil {
+		c.cache.Set(string(req.Body), res.Body)
 	}
 
 	return fillResponse(*res, out)

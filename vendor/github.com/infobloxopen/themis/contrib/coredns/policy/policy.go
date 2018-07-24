@@ -10,6 +10,7 @@ import (
 	"github.com/miekg/dns"
 	"golang.org/x/net/context"
 
+	"github.com/infobloxopen/themis/pdp"
 	"github.com/infobloxopen/themis/pep"
 )
 
@@ -111,8 +112,11 @@ func (p *policyPlugin) ServeDNS(ctx context.Context, w dns.ResponseWriter, r *dn
 		}
 	}
 
-	attrsRequest := p.attrPool.Get()
-	defer p.attrPool.Put(attrsRequest)
+	var attrsRequest []pdp.AttributeAssignment
+	if !p.conf.autoResAttrs {
+		attrsRequest = p.attrPool.Get()
+		defer p.attrPool.Put(attrsRequest)
+	}
 	// validate domain name (validation #1)
 	if err := p.validate(ah, attrsRequest); err != nil {
 		status = dns.RcodeServerFailure
@@ -154,8 +158,11 @@ func (p *policyPlugin) ServeDNS(ctx context.Context, w dns.ResponseWriter, r *dn
 		if address != nil {
 			ah.addIPReq(address)
 
-			attrsResponse := p.attrPool.Get()
-			defer p.attrPool.Put(attrsResponse)
+			var attrsResponse []pdp.AttributeAssignment
+			if !p.conf.autoResAttrs {
+				attrsResponse = p.attrPool.Get()
+				defer p.attrPool.Put(attrsResponse)
+			}
 			// validate response IP (validation #2)
 			if err := p.validate(ah, attrsResponse); err != nil {
 				status = dns.RcodeServerFailure

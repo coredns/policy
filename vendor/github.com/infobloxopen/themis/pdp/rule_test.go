@@ -59,7 +59,7 @@ func TestRuleMarshalWithDepth(t *testing.T) {
 	}
 
 	// good depth, visible rule
-	expectMarshal := `{"ord":32,"id":"one"}`
+	expectMarshal := `{"ord":32,"id":"one","target":{},"obligations":null,"effect":"Deny"}`
 	err = rule.MarshalWithDepth(&buf, 0)
 	if err != nil {
 		t.Errorf("Expecting no error, got %v", err)

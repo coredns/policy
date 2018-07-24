@@ -26,11 +26,16 @@ type unaryClient struct {
 }
 
 func newUnaryClient(opts options) *unaryClient {
-	return &unaryClient{
+	c := &unaryClient{
 		lock: &sync.RWMutex{},
 		opts: opts,
-		pool: makeBytePool(int(opts.maxRequestSize), opts.noPool),
 	}
+
+	if !opts.autoRequestSize {
+		c.pool = makeBytePool(int(opts.maxRequestSize), opts.noPool)
+	}
+
+	return c
 }
 
 func (c *unaryClient) Connect(addr string) error {
@@ -119,16 +124,25 @@ func (c *unaryClient) Validate(in, out interface{}) error {
 		return ErrorNotConnected
 	}
 
-	var b []byte
-	switch in.(type) {
-	default:
-		b = c.pool.Get()
-		defer c.pool.Put(b)
+	var (
+		req pb.Msg
+		err error
+	)
 
-	case []byte, pb.Msg, *pb.Msg:
+	if c.opts.autoRequestSize {
+		req, err = makeRequest(in)
+	} else {
+		var b []byte
+		switch in.(type) {
+		default:
+			b = c.pool.Get()
+			defer c.pool.Put(b)
+
+		case []byte, pb.Msg, *pb.Msg:
+		}
+
+		req, err = makeRequestWithBuffer(in, b)
 	}
-
-	req, err := makeRequest(in, b)
 	if err != nil {
 		return err
 	}

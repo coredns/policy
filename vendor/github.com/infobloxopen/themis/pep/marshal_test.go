@@ -119,8 +119,8 @@ var (
 func TestMarshalUntaggedStruct(t *testing.T) {
 	var b [249]byte
 
-	n, err := marshalValue(reflect.ValueOf(testStruct), b[:])
-	assertBytesBuffer(t, "marshalValue(TestStruct)", err, b[:], n, testRequestBuffer...)
+	n, err := marshalValueToBuffer(reflect.ValueOf(testStruct), b[:])
+	assertBytesBuffer(t, "marshalValueToBuffer(TestStruct)", err, b[:], n, testRequestBuffer...)
 }
 
 func TestMarshalTaggedStruct(t *testing.T) {
@@ -150,8 +150,8 @@ func TestMarshalTaggedStruct(t *testing.T) {
 		strlist: []string{"one", "two", "three"},
 	}
 
-	n, err := marshalValue(reflect.ValueOf(v), b[:])
-	assertBytesBuffer(t, "marshalValue(TestTaggedStruct)", err, b[:], n,
+	n, err := marshalValueToBuffer(reflect.ValueOf(v), b[:])
+	assertBytesBuffer(t, "marshalValueToBuffer(TestTaggedStruct)", err, b[:], n,
 		1, 0,
 		12, 0,
 		5, 'B', 'o', 'o', 'l', '2', 0,
@@ -179,16 +179,32 @@ func TestMarshalTaggedStruct(t *testing.T) {
 }
 
 func TestMarshalInvalidStructs(t *testing.T) {
+	b, err := marshalValue(reflect.ValueOf(TestInvalidStruct1{}))
+	if err == nil {
+		t.Errorf("exepcted \"can't marshal\" error but got %d bytes in buffer: [% x]", len(b), b)
+	} else if !strings.Contains(err.Error(), "can't marshal") {
+		t.Errorf("Exepcted \"can't marshal\" error but got:\n%s", err)
+	}
+
+	b, err = marshalValue(reflect.ValueOf(TestInvalidStruct2{}))
+	if err == nil {
+		t.Errorf("exepcted \"can't marshal\" error but got %d bytes in buffer: [% x]", len(b), b)
+	} else if !strings.Contains(err.Error(), "can't marshal") {
+		t.Errorf("Exepcted \"can't marshal\" error but got:\n%s", err)
+	}
+}
+
+func TestMarshalInvalidStructsToBuffer(t *testing.T) {
 	var b [100]byte
 
-	n, err := marshalValue(reflect.ValueOf(TestInvalidStruct1{}), b[:])
+	n, err := marshalValueToBuffer(reflect.ValueOf(TestInvalidStruct1{}), b[:])
 	if err == nil {
 		t.Errorf("exepcted \"can't marshal\" error but got %d bytes in buffer: [% x]", n, b[:n])
 	} else if !strings.Contains(err.Error(), "can't marshal") {
 		t.Errorf("Exepcted \"can't marshal\" error but got:\n%s", err)
 	}
 
-	n, err = marshalValue(reflect.ValueOf(TestInvalidStruct2{}), b[:])
+	n, err = marshalValueToBuffer(reflect.ValueOf(TestInvalidStruct2{}), b[:])
 	if err == nil {
 		t.Errorf("exepcted \"can't marshal\" error but got %d bytes in buffer: [% x]", n, b[:n])
 	} else if !strings.Contains(err.Error(), "can't marshal") {
@@ -197,19 +213,14 @@ func TestMarshalInvalidStructs(t *testing.T) {
 }
 
 func TestMakeRequest(t *testing.T) {
-	var b [249]byte
+	m, err := makeRequest(pb.Msg{Body: testRequestBuffer})
+	assertBytesBuffer(t, "makeRequestWithBuffer(pb.Msg)", err, m.Body, len(m.Body), testRequestBuffer...)
 
-	m, err := makeRequest(pb.Msg{Body: testRequestBuffer}, b[:])
-	assertBytesBuffer(t, "makeRequest(pb.Msg)", err, m.Body, len(m.Body), testRequestBuffer...)
+	m, err = makeRequest(&pb.Msg{Body: testRequestBuffer})
+	assertBytesBuffer(t, "makeRequestWithBuffer(&pb.Msg)", err, m.Body, len(m.Body), testRequestBuffer...)
 
-	m, err = makeRequest(&pb.Msg{Body: testRequestBuffer}, b[:])
-	assertBytesBuffer(t, "makeRequest(&pb.Msg)", err, m.Body, len(m.Body), testRequestBuffer...)
-
-	m, err = makeRequest(testRequestBuffer, b[:])
-	assertBytesBuffer(t, "makeRequest(testRequestBuffer)", err, m.Body, len(m.Body), testRequestBuffer...)
-
-	m, err = makeRequest(testStruct, b[:])
-	assertBytesBuffer(t, "makeRequest(testStruct)", err, m.Body, len(m.Body), testRequestBuffer...)
+	m, err = makeRequest(testRequestBuffer)
+	assertBytesBuffer(t, "makeRequestWithBuffer(testRequestBuffer)", err, m.Body, len(m.Body), testRequestBuffer...)
 
 	m, err = makeRequest([]pdp.AttributeAssignment{
 		pdp.MakeBooleanAssignment("Bool", true),
@@ -231,8 +242,47 @@ func TestMakeRequest(t *testing.T) {
 			makeTestDomain("www.example.com"),
 		)),
 		pdp.MakeListOfStringsAssignment("StrList", []string{"one", "two", "three"}),
+	})
+	assertBytesBuffer(t, "makeRequestWithBuffer(assignments)", err, m.Body, len(m.Body), testRequestBuffer...)
+}
+
+func TestMakeRequestWithBuffer(t *testing.T) {
+	var b [249]byte
+
+	m, err := makeRequestWithBuffer(pb.Msg{Body: testRequestBuffer}, b[:])
+	assertBytesBuffer(t, "makeRequestWithBuffer(pb.Msg)", err, m.Body, len(m.Body), testRequestBuffer...)
+
+	m, err = makeRequestWithBuffer(&pb.Msg{Body: testRequestBuffer}, b[:])
+	assertBytesBuffer(t, "makeRequestWithBuffer(&pb.Msg)", err, m.Body, len(m.Body), testRequestBuffer...)
+
+	m, err = makeRequestWithBuffer(testRequestBuffer, b[:])
+	assertBytesBuffer(t, "makeRequestWithBuffer(testRequestBuffer)", err, m.Body, len(m.Body), testRequestBuffer...)
+
+	m, err = makeRequestWithBuffer(testStruct, b[:])
+	assertBytesBuffer(t, "makeRequestWithBuffer(testStruct)", err, m.Body, len(m.Body), testRequestBuffer...)
+
+	m, err = makeRequestWithBuffer([]pdp.AttributeAssignment{
+		pdp.MakeBooleanAssignment("Bool", true),
+		pdp.MakeIntegerAssignment("Int", 5),
+		pdp.MakeFloatAssignment("Float", 555.5),
+		pdp.MakeStringAssignment("String", "test"),
+		pdp.MakeAddressAssignment("Address", net.ParseIP("1.2.3.4")),
+		pdp.MakeNetworkAssignment("Network", makeTestNetwork("1.2.3.4/32")),
+		pdp.MakeDomainAssignment("Domain", makeTestDomain("example.com")),
+		pdp.MakeSetOfStringsAssignment("Strings", newStrTree("one", "two", "three")),
+		pdp.MakeSetOfNetworksAssignment("Networks", newIPTree(
+			makeTestNetwork("192.0.2.0/24"),
+			makeTestNetwork("2001:db8::/32"),
+			makeTestNetwork("192.0.2.16/28"),
+		)),
+		pdp.MakeSetOfDomainsAssignment("Domains", newDomainTree(
+			makeTestDomain("example.com"),
+			makeTestDomain("example.gov"),
+			makeTestDomain("www.example.com"),
+		)),
+		pdp.MakeListOfStringsAssignment("StrList", []string{"one", "two", "three"}),
 	}, b[:])
-	assertBytesBuffer(t, "makeRequest(assignments)", err, m.Body, len(m.Body), testRequestBuffer...)
+	assertBytesBuffer(t, "makeRequestWithBuffer(assignments)", err, m.Body, len(m.Body), testRequestBuffer...)
 }
 
 func makeTestNetwork(s string) *net.IPNet {

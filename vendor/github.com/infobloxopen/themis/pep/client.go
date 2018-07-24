@@ -135,8 +135,19 @@ func WithConnectionStateNotification(callback ConnectionStateNotificationCallbac
 	}
 }
 
+// WithAutoRequestSize returns an Option which makes client automatically
+// allocate buffer for decision request. By default request size is limited
+// by 10KB. When the option is set MaxRequestSize is still used to determine
+// cache limit.
+func WithAutoRequestSize(b bool) Option {
+	return func(o *options) {
+		o.autoRequestSize = b
+	}
+}
+
 // WithMaxRequestSize returns an Option which limits request size in bytes
-// to given value. Default 10KB.
+// to given value. Default 10KB. WithAutoRequestSize overrides the option but
+// it still affects cache size.
 func WithMaxRequestSize(size uint32) Option {
 	return func(o *options) {
 		o.maxRequestSize = size
@@ -172,6 +183,22 @@ func WithCacheTTLAndMaxSize(ttl time.Duration, size int) Option {
 	}
 }
 
+// WithPolicyFile returns an Option which specifies policy file used by
+// the builtinClient.
+func WithPolicyFile(policyFile string) Option {
+	return func(o *options) {
+		o.policyFile = policyFile
+	}
+}
+
+// WithContentFiles returns an Option which specifies content files used by
+// the builtinClient.
+func WithContentFiles(contentFiles []string) Option {
+	return func(o *options) {
+		o.contentFiles = contentFiles
+	}
+}
+
 const (
 	noBalancer = iota
 	roundRobinBalancer
@@ -179,17 +206,20 @@ const (
 )
 
 type options struct {
-	addresses      []string
-	balancer       int
-	tracer         ot.Tracer
-	maxStreams     int
-	connTimeout    time.Duration
-	connStateCb    ConnectionStateNotificationCallback
-	maxRequestSize uint32
-	noPool         bool
-	cache          bool
-	cacheTTL       time.Duration
-	cacheMaxSize   int
+	addresses       []string
+	balancer        int
+	tracer          ot.Tracer
+	maxStreams      int
+	connTimeout     time.Duration
+	connStateCb     ConnectionStateNotificationCallback
+	autoRequestSize bool
+	maxRequestSize  uint32
+	noPool          bool
+	cache           bool
+	cacheTTL        time.Duration
+	cacheMaxSize    int
+	policyFile      string
+	contentFiles    []string
 }
 
 // NewClient creates client instance using given options.
@@ -200,6 +230,10 @@ func NewClient(opts ...Option) Client {
 	}
 	for _, opt := range opts {
 		opt(&o)
+	}
+
+	if o.policyFile != "" {
+		return newBuiltinClient(o)
 	}
 
 	if o.maxStreams > 0 {

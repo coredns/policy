@@ -103,8 +103,8 @@ func TestResponse(t *testing.T) {
 
 	var b [258]byte
 
-	n, err := r.Marshal(b[:], nil)
-	assertRequestBytesBuffer(t, "r.Marshal", err, b[:47], n,
+	n, err := r.MarshalToBuffer(b[:], nil)
+	assertRequestBytesBuffer(t, "r.MarshalToBuffer", err, b[:47], n,
 		append([]byte{1, 0, 1, 0, 0}, testWireAttributes...)...,
 	)
 
@@ -124,8 +124,8 @@ func TestResponse(t *testing.T) {
 	}
 
 	ctx, _ := NewContext(nil, 0, nil)
-	n, err = r.Marshal(b[:], ctx)
-	assertRequestBytesBuffer(t, "r.Marshal", err, b[:258], n,
+	n, err = r.MarshalToBuffer(b[:], ctx)
+	assertRequestBytesBuffer(t, "r(multiple errors).MarshalToBuffer", err, b[:258], n,
 		append([]byte{
 			1, 0, 3,
 			211, 0,

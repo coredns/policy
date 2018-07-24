@@ -41,6 +41,7 @@ func (p *policyPlugin) connect() error {
 		}
 	}
 
+	opts = append(opts, pep.WithAutoRequestSize(p.conf.autoReqSize))
 	if p.conf.maxReqSize > 0 {
 		opts = append(opts, pep.WithMaxRequestSize(uint32(p.conf.maxReqSize)))
 	}
@@ -54,10 +55,10 @@ func (p *policyPlugin) connect() error {
 	}
 
 	if p.conf.policyFile != "" {
-		p.pdp = pep.NewBuiltinClient(p.conf.policyFile, p.conf.contentFiles)
-	} else {
-		p.pdp = pep.NewClient(opts...)
+		opts = append(opts, pep.WithPolicyFile(p.conf.policyFile), pep.WithContentFiles(p.conf.contentFiles))
 	}
+
+	p.pdp = pep.NewClient(opts...)
 	return p.pdp.Connect("")
 }
 

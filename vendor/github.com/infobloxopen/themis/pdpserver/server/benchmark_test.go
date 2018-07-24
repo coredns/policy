@@ -807,7 +807,7 @@ func init() {
 			panic(fmt.Errorf("failed to make domain for request %d: %s", i+1, err))
 		}
 
-		n, err := pdp.MarshalRequestAssignments(b, []pdp.AttributeAssignment{
+		n, err := pdp.MarshalRequestAssignmentsToBuffer(b, []pdp.AttributeAssignment{
 			pdp.MakeStringAssignment("k1", directionOpts[rand.Intn(len(directionOpts))]),
 			pdp.MakeStringAssignment("k2", policySetOpts[rand.Intn(len(policySetOpts))]),
 			pdp.MakeDomainAssignment("k3", dn),
@@ -833,7 +833,7 @@ func benchmarkPolicySet(p *pdp.PolicyStorage, b *testing.B) {
 			b.Fatalf("Expected no error while evaluating policies at %d iteration but got: %s", n+1, err)
 		}
 
-		effect, n, err := pdp.UnmarshalResponse(r.Body, a[:])
+		effect, n, err := pdp.UnmarshalResponseToAssignmentsArray(r.Body, a[:])
 		if err != nil {
 			b.Fatalf("Expected no error while unmarshalling response at %d iteration but got: %s", n+1, err)
 		}
@@ -863,7 +863,6 @@ func benchmarkRawPolicySet(p *pdp.PolicyStorage, b *testing.B) {
 	s.c = benchmarkContentStorage
 
 	var a [1]pdp.AttributeAssignment
-	var buf [1024]byte
 
 	for n := 0; n < b.N; n++ {
 		s.RLock()
@@ -871,9 +870,9 @@ func benchmarkRawPolicySet(p *pdp.PolicyStorage, b *testing.B) {
 		c := s.c
 		s.RUnlock()
 
-		r := s.rawValidate(p, c, benchmarkRequests[n%len(benchmarkRequests)].Body, buf[:])
+		r := s.rawValidate(p, c, benchmarkRequests[n%len(benchmarkRequests)].Body)
 
-		effect, n, err := pdp.UnmarshalResponse(r, a[:])
+		effect, n, err := pdp.UnmarshalResponseToAssignmentsArray(r, a[:])
 		if err != nil {
 			b.Fatalf("Expected no error while unmarshalling response at %d iteration but got: %s", n+1, err)
 		}
@@ -895,4 +894,90 @@ func BenchmarkRawTwoStagePolicySet(b *testing.B) {
 
 func BenchmarkRawThreeStagePolicySet(b *testing.B) {
 	benchmarkRawPolicySet(threeStageBenchmarkPolicyStorage, b)
+}
+
+func benchmarkRawPolicySetWithAllocator(p *pdp.PolicyStorage, b *testing.B) {
+	s := NewServer()
+	s.p = p
+	s.c = benchmarkContentStorage
+
+	var a [1]pdp.AttributeAssignment
+	buf := []byte{}
+
+	for n := 0; n < b.N; n++ {
+		s.RLock()
+		p := s.p
+		c := s.c
+		s.RUnlock()
+
+		r := s.rawValidateWithAllocator(p, c, benchmarkRequests[n%len(benchmarkRequests)].Body, func(n int) ([]byte, error) {
+			if len(buf) < n {
+				buf = make([]byte, n)
+			}
+
+			return buf, nil
+		})
+
+		effect, n, err := pdp.UnmarshalResponseToAssignmentsArray(r, a[:])
+		if err != nil {
+			b.Fatalf("Expected no error while unmarshalling response at %d iteration but got: %s", n+1, err)
+		}
+
+		if effect >= pdp.EffectIndeterminate {
+			b.Fatalf("Expected specific result of policy evaluation at %d iteration but got %s",
+				n+1, pdp.EffectNameFromEnum(effect))
+		}
+	}
+}
+
+func BenchmarkRawOneStagePolicySetWithAllocator(b *testing.B) {
+	benchmarkRawPolicySetWithAllocator(oneStageBenchmarkPolicyStorage, b)
+}
+
+func BenchmarkRawTwoStagePolicySetWithAllocator(b *testing.B) {
+	benchmarkRawPolicySetWithAllocator(twoStageBenchmarkPolicyStorage, b)
+}
+
+func BenchmarkRawThreeStagePolicySetWithAllocator(b *testing.B) {
+	benchmarkRawPolicySetWithAllocator(threeStageBenchmarkPolicyStorage, b)
+}
+
+func benchmarkRawPolicySetToBuffer(p *pdp.PolicyStorage, b *testing.B) {
+	s := NewServer()
+	s.p = p
+	s.c = benchmarkContentStorage
+
+	var a [1]pdp.AttributeAssignment
+	var buf [1024]byte
+
+	for n := 0; n < b.N; n++ {
+		s.RLock()
+		p := s.p
+		c := s.c
+		s.RUnlock()
+
+		r := s.rawValidateToBuffer(p, c, benchmarkRequests[n%len(benchmarkRequests)].Body, buf[:])
+
+		effect, n, err := pdp.UnmarshalResponseToAssignmentsArray(r, a[:])
+		if err != nil {
+			b.Fatalf("Expected no error while unmarshalling response at %d iteration but got: %s", n+1, err)
+		}
+
+		if effect >= pdp.EffectIndeterminate {
+			b.Fatalf("Expected specific result of policy evaluation at %d iteration but got %s",
+				n+1, pdp.EffectNameFromEnum(effect))
+		}
+	}
+}
+
+func BenchmarkRawOneStagePolicySetToBuffer(b *testing.B) {
+	benchmarkRawPolicySetToBuffer(oneStageBenchmarkPolicyStorage, b)
+}
+
+func BenchmarkRawTwoStagePolicySetToBuffer(b *testing.B) {
+	benchmarkRawPolicySetToBuffer(twoStageBenchmarkPolicyStorage, b)
+}
+
+func BenchmarkRawThreeStagePolicySetToBuffer(b *testing.B) {
+	benchmarkRawPolicySetToBuffer(threeStageBenchmarkPolicyStorage, b)
 }

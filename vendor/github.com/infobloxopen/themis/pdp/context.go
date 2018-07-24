@@ -392,9 +392,8 @@ type Response struct {
 	Obligations []AttributeAssignment
 }
 
-// Marshal fills given byte array with marshalled representation of
-// the response. The method returns number of bytes filled or error.
-func (r Response) Marshal(b []byte, ctx *Context) (int, error) {
+// Marshal encodes response as a sequence of bytes.
+func (r Response) Marshal(ctx *Context) ([]byte, error) {
 	var errs [2]error
 
 	nErr := 0
@@ -418,7 +417,66 @@ func (r Response) Marshal(b []byte, ctx *Context) (int, error) {
 		a[i] = MakeAttributeAssignment(e.a, v)
 	}
 
-	return marshalResponse(b, r.Effect, a, errs[:nErr]...)
+	return marshalResponse(r.Effect, a, errs[:nErr]...)
+}
+
+// MarshalWithAllocator encodes response as a sequence of bytes. It uses given
+// allocator to create required response buffer. The allocator is expected
+// to take number of bytes required and return slice of that length.
+func (r Response) MarshalWithAllocator(f func(n int) ([]byte, error), ctx *Context) ([]byte, error) {
+	var errs [2]error
+
+	nErr := 0
+	if r.Status != nil {
+		errs[nErr] = newPolicyCalculationError(r.Status)
+		nErr++
+	}
+
+	a := make([]AttributeAssignment, len(r.Obligations))
+	for i, e := range r.Obligations {
+		v, err := e.e.Calculate(ctx)
+		if err != nil {
+			a = a[:i]
+
+			errs[nErr] = newObligationCalculationError(e.a, err)
+			nErr++
+
+			break
+		}
+
+		a[i] = MakeAttributeAssignment(e.a, v)
+	}
+
+	return marshalResponseWithAllocator(f, r.Effect, a, errs[:nErr]...)
+}
+
+// MarshalToBuffer fills given byte array with marshalled representation
+// of the response. The method returns number of bytes filled or error.
+func (r Response) MarshalToBuffer(b []byte, ctx *Context) (int, error) {
+	var errs [2]error
+
+	nErr := 0
+	if r.Status != nil {
+		errs[nErr] = newPolicyCalculationError(r.Status)
+		nErr++
+	}
+
+	a := make([]AttributeAssignment, len(r.Obligations))
+	for i, e := range r.Obligations {
+		v, err := e.e.Calculate(ctx)
+		if err != nil {
+			a = a[:i]
+
+			errs[nErr] = newObligationCalculationError(e.a, err)
+			nErr++
+
+			break
+		}
+
+		a[i] = MakeAttributeAssignment(e.a, v)
+	}
+
+	return marshalResponseToBuffer(b, r.Effect, a, errs[:nErr]...)
 }
 
 // Evaluable interface defines abstract PDP's entity which can be evaluated

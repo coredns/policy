@@ -34,26 +34,33 @@ func TestUnaryClientValidation(t *testing.T) {
 		}
 	}()
 
-	c := NewClient()
-	err := c.Connect("127.0.0.1:5555")
-	if err != nil {
-		t.Fatalf("expected no error but got %s", err)
-	}
-	defer c.Close()
+	t.Run("fixed-buffer", testSingleRequest())
+	t.Run("auto-buffer", testSingleRequest(WithAutoRequestSize(true)))
+}
 
-	in := decisionRequest{
-		Direction: "Any",
-		Policy:    "AllPermitPolicy",
-		Domain:    "example.com",
-	}
-	var out decisionResponse
-	err = c.Validate(in, &out)
-	if err != nil {
-		t.Errorf("expected no error but got %s", err)
-	}
+func testSingleRequest(opt ...Option) func(t *testing.T) {
+	return func(t *testing.T) {
+		c := NewClient(opt...)
+		err := c.Connect("127.0.0.1:5555")
+		if err != nil {
+			t.Fatalf("expected no error but got %s", err)
+		}
+		defer c.Close()
 
-	if out.Effect != pdp.EffectPermit || out.Reason != nil || out.X != "AllPermitRule" {
-		t.Errorf("got unexpected response: %s", out)
+		in := decisionRequest{
+			Direction: "Any",
+			Policy:    "AllPermitPolicy",
+			Domain:    "example.com",
+		}
+		var out decisionResponse
+		err = c.Validate(in, &out)
+		if err != nil {
+			t.Errorf("expected no error but got %s", err)
+		}
+
+		if out.Effect != pdp.EffectPermit || out.Reason != nil || out.X != "AllPermitRule" {
+			t.Errorf("got unexpected response: %s", out)
+		}
 	}
 }
 

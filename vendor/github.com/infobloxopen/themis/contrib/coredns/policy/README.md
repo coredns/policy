@@ -16,8 +16,8 @@ policy {
     dnstap ATTR_1, ATTR_2, ... ATTR_N
     passthrough SUFFIX_1, SUFFIX_2, ... SUFFIX_N
     log
-    max_request_size SIZE
-    max_response_attributes COUNT
+    max_request_size [[auto] SIZE]
+    max_response_attributes auto | COUNT
     cache [TTL [SIZE]]
 }
 ~~~
@@ -52,9 +52,9 @@ Option connection_timeout sets timeout for query validation when no PDP server a
 
 Option log enables log PDP request and response
 
-Option max_request_size sets maximum buffer size in bytes for serialized request. Too high limit makes the plugin to allocate too much memory while too small can lead to buffer overflow errors on validation.
+Option max_request_size sets maximum buffer size in bytes for serialized request. Too high limit makes the plugin to allocate too much memory while too small can lead to buffer overflow errors on validation. If "auto" is set plugin allocates required amount of bytes for each request. In case of both "auto" and SIZE, SIZE doesn't limit request buffer but used for cache allocations. 
 
-Option max_response_attributes sets maximum number of attributes expected from PDP.
+Option max_response_attributes sets maximum number of attributes expected from PDP. If value is "auto" plugin allocates necessary attribuets for each PDP response.
 
 Option cache enables decision cache. TTL default value is 10 minutes. SIZE limits memory cache takes to given number of megabytes. If it isn't provided cache can grow until application crashes due to out of memory.
 

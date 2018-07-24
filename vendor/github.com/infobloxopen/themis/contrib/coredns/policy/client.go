@@ -41,6 +41,7 @@ func (p *policyPlugin) connect() error {
 		}
 	}
 
+	opts = append(opts, pep.WithAutoRequestSize(p.conf.autoReqSize))
 	if p.conf.maxReqSize > 0 {
 		opts = append(opts, pep.WithMaxRequestSize(uint32(p.conf.maxReqSize)))
 	}

@@ -12,10 +12,22 @@ type StorageMarshal interface {
 	MarshalWithDepth(out io.Writer, depth int) error
 }
 
-// PolicySet/Policy/Rule representation for marshaling
-type storageNodeFmt struct {
-	Ord int    `json:"ord"`
-	ID  string `json:"id"`
+// PolicySet/Policy representation for marshaling
+type storageEvalFmt struct {
+	Ord         int                   `json:"ord"`
+	ID          string                `json:"id"`
+	Target      Target                `json:"target"`
+	Obligations []AttributeAssignment `json:"obligations"`
+	Algorithm   json.Marshaler        `json:"algorithm"`
+}
+
+// Rule representation for marshaling
+type storageRuleFmt struct {
+	Ord         int                   `json:"ord"`
+	ID          string                `json:"id"`
+	Target      Target                `json:"target"`
+	Obligations []AttributeAssignment `json:"obligations"`
+	Effect      string                `json:"effect"`
 }
 
 func marshalHeader(v interface{}, out io.Writer) error {
@@ -29,4 +41,16 @@ func marshalHeader(v interface{}, out io.Writer) error {
 	}
 	_, err = out.Write(b[:n-1])
 	return err
+}
+
+// Algorithm representation for marshalling
+type algFmt struct {
+	Type string `json:"type"`
+}
+
+type mapperAlgFmt struct {
+	Type      string         `json:"type"`
+	Default   string         `json:"def"`
+	Error     string         `json:"err"`
+	Algorithm json.Marshaler `json:"alg"`
 }

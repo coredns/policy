@@ -18,27 +18,8 @@ func TestStreamingClientValidation(t *testing.T) {
 		}
 	}()
 
-	c := NewClient(WithStreams(1))
-	err := c.Connect("127.0.0.1:5555")
-	if err != nil {
-		t.Fatalf("expected no error but got %s", err)
-	}
-	defer c.Close()
-
-	in := decisionRequest{
-		Direction: "Any",
-		Policy:    "AllPermitPolicy",
-		Domain:    "example.com",
-	}
-	var out decisionResponse
-	err = c.Validate(in, &out)
-	if err != nil {
-		t.Errorf("expected no error but got %s", err)
-	}
-
-	if out.Effect != pdp.EffectPermit || out.Reason != nil || out.X != "AllPermitRule" {
-		t.Errorf("got unexpected response: %s", out)
-	}
+	t.Run("fixed-buffer", testSingleRequest(WithStreams(1)))
+	t.Run("auto-buffer", testSingleRequest(WithStreams(1), WithAutoRequestSize(true)))
 }
 
 func TestStreamingClientValidationWithCache(t *testing.T) {

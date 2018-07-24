@@ -1,8 +1,10 @@
 package pdp
 
 import (
+	"encoding/json"
 	"fmt"
 	"sort"
+	"strconv"
 	"strings"
 
 	"github.com/infobloxopen/go-trees/strtree"
@@ -175,6 +177,22 @@ func makeMapperPCA(policies []Evaluable, params interface{}) PolicyCombiningAlg 
 		err:       err,
 		order:     mapperParams.Order,
 		algorithm: mapperParams.Algorithm}
+}
+
+func (a mapperPCA) MarshalJSON() ([]byte, error) {
+	var defID, errID string
+	if a.def != nil {
+		defID, _ = a.def.GetID()
+	}
+	if a.err != nil {
+		errID, _ = a.err.GetID()
+	}
+	return json.Marshal(mapperAlgFmt{
+		Type:      "mapperPCA",
+		Default:   strconv.Quote(defID),
+		Error:     strconv.Quote(errID),
+		Algorithm: a.algorithm,
+	})
 }
 
 func (a mapperPCA) describe() string {
