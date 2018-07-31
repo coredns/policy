@@ -251,9 +251,6 @@ func (ah *attrHolder) addIPRes(r *pdp.Response) {
 		ah.action = actionInvalid
 
 	case pdp.EffectPermit:
-		if ah.action == actionLog {
-			break
-		}
 		ah.action = actionAllow
 
 		for _, o := range r.Obligations {

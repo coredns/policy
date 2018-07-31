@@ -2,16 +2,16 @@
 package erratic
 
 import (
+	"context"
 	"sync/atomic"
 	"time"
 
 	"github.com/coredns/coredns/request"
 
 	"github.com/miekg/dns"
-	"golang.org/x/net/context"
 )
 
-// Erratic is a plugin that returns erratic repsonses to each client.
+// Erratic is a plugin that returns erratic responses to each client.
 type Erratic struct {
 	drop uint64
 
@@ -45,7 +45,6 @@ func (e *Erratic) ServeDNS(ctx context.Context, w dns.ResponseWriter, r *dns.Msg
 
 	m := new(dns.Msg)
 	m.SetReply(r)
-	m.Compress = true
 	m.Authoritative = true
 	if trunc {
 		m.Truncated = true
@@ -62,14 +61,26 @@ func (e *Erratic) ServeDNS(ctx context.Context, w dns.ResponseWriter, r *dns.Msg
 		rr := *(rrAAAA.(*dns.AAAA))
 		rr.Header().Name = state.QName()
 		m.Answer = append(m.Answer, &rr)
-	default:
-		if !drop {
-			if delay {
-				time.Sleep(e.duration)
-			}
-			// coredns will return error.
-			return dns.RcodeServerFailure, nil
+	case dns.TypeAXFR:
+		if drop {
+			return 0, nil
 		}
+		if delay {
+			time.Sleep(e.duration)
+		}
+
+		xfr(state, trunc)
+		return 0, nil
+
+	default:
+		if drop {
+			return 0, nil
+		}
+		if delay {
+			time.Sleep(e.duration)
+		}
+		// coredns will return error.
+		return dns.RcodeServerFailure, nil
 	}
 
 	if drop {

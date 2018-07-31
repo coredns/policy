@@ -1,7 +1,7 @@
 .\" generated with Ronn/v0.7.3
 .\" http://github.com/rtomayko/ronn/tree/0.7.3
 .
-.TH "COREDNS\-TRACE" "7" "February 2018" "CoreDNS" "CoreDNS plugins"
+.TH "COREDNS\-TRACE" "7" "June 2018" "CoreDNS" "CoreDNS plugins"
 .
 .SH "NAME"
 \fItrace\fR \- enables OpenTracing\-based tracing of DNS requests as they go through the plugin chain\.
@@ -23,7 +23,7 @@ trace [ENDPOINT\-TYPE] [ENDPOINT]
 .IP "" 0
 .
 .IP "\(bu" 4
-\fBENDPOINT\-TYPE\fR is the type of tracing destination\. Currently only \fBzipkin\fR is supported and that is what it defaults to\.
+\fBENDPOINT\-TYPE\fR is the type of tracing destination\. Currently only \fBzipkin\fR and \fBdatadog\fR are supported\. Defaults to \fBzipkin\fR\.
 .
 .IP "\(bu" 4
 \fBENDPOINT\fR is the tracing destination, and defaults to \fBlocalhost:9411\fR\. For Zipkin, if ENDPOINT does not begin with \fBhttp\fR, then it will be transformed to \fBhttp://ENDPOINT/api/v1/spans\fR\.
@@ -110,6 +110,19 @@ If for some reason you are using an API reverse proxy or something and need to r
 .nf
 
 trace http://tracinghost:9411/zipkin/api/v1/spans
+.
+.fi
+.
+.IP "" 0
+.
+.P
+Using DataDog:
+.
+.IP "" 4
+.
+.nf
+
+trace datadog localhost:8125
 .
 .fi
 .

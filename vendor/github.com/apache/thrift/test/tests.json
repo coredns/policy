@@ -43,10 +43,28 @@
     "workdir": "c_glib"
   },
   {
+    "name": "cl",
+    "server": {
+      "command": ["TestServer"],
+      "workdir": "cl",
+      "protocols": ["binary", "multi"],
+      "transports": ["buffered", "framed"],
+      "sockets": ["ip"]
+    },
+    "client": {
+      "command": ["TestClient"],
+      "workdir": "cl",
+      "protocols": ["binary", "multi"],
+      "transports": ["buffered", "framed"],
+      "sockets": ["ip"]
+    }
+  },
+  {
     "name": "d",
     "server": {
       "command": [
-        "thrift_test_server"
+        "thrift_test_server",
+        "--trace"
       ]
     },
     "client": {
@@ -174,7 +192,8 @@
     ],
     "sockets": [
       "ip",
-      "ip-ssl"
+      "ip-ssl",
+      "domain"
     ],
     "protocols": [
       "compact",
@@ -231,11 +250,19 @@
         "--verbose",
         "--host=localhost",
         "--genpydir=gen-py"
+      ],
+      "protocols": [
+        "multi",
+        "multi:multia",
+        "multic",
+        "multic:multiac",
+        "multij"
       ]
     },
     "transports": [
       "buffered",
-      "framed"
+      "framed",
+      "http"
     ],
     "sockets": [
       "ip",
@@ -269,15 +296,23 @@
         "TestClient.py",
         "--host=localhost",
         "--genpydir=gen-py"
+      ],
+      "protocols": [
+        "multi",
+        "multi:multia",
+        "multic",
+        "multic:multiac",
+        "multij"
       ]
     },
     "transports": [
       "buffered",
-      "framed"
+      "framed",
+      "http"
     ],
     "sockets": [
-      "ip-ssl",
-      "ip"
+      "ip",
+      "ip-ssl"
     ],
     "protocols": [
       "compact",
@@ -347,7 +382,8 @@
       "timeout": 5,
       "command": [
         "ruby",
-        "../integration/TestClient.rb"
+        "../integration/TestClient.rb",
+        "--"
       ]
     },
     "transports": [
@@ -355,13 +391,15 @@
       "framed"
     ],
     "sockets": [
-      "ip"
+      "domain",
+      "ip",
+      "ip-ssl"
     ],
     "protocols": [
-      "compact",
       "binary",
-      "json",
-      "binary:accel"
+      "binary:accel",
+      "compact",
+      "json"
     ],
     "workdir": "rb/gen-rb"
   },
@@ -421,12 +459,12 @@
       "compact",
       "json"
     ],
-        "server": {
+    "server": {
       "command": [
         "dotnet",
         "run",
-  "--no-build",
-                "--project=Server/Server.csproj",
+        "--no-build",
+        "--project=Server/Server.csproj",
         "server"
       ]
     },
@@ -435,8 +473,8 @@
       "command": [
         "dotnet",
         "run",
-  "--no-build",
-                "--project=Client/Client.csproj",
+        "--no-build",
+        "--project=Client/Client.csproj",
         "client"
       ]
     },

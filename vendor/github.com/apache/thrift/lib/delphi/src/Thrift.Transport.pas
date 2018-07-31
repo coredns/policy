@@ -39,6 +39,7 @@ uses
     {$ENDIF}
   {$ENDIF}
   Thrift.Collections,
+  Thrift.Exception,
   Thrift.Utils,
   Thrift.Stream;
 
@@ -79,7 +80,7 @@ type
     procedure Flush; virtual;
   end;
 
-  TTransportException = class( Exception )
+  TTransportException = class( TException)
   public
     type
       TExceptionType = (
@@ -842,8 +843,13 @@ end;
 procedure TSocketImpl.Close;
 begin
   inherited Close;
+
+  FInputStream := nil;
+  FOutputStream := nil;
+
   if FOwnsClient
-  then FreeAndNil( FClient);
+  then FreeAndNil( FClient)
+  else FClient := nil;
 end;
 
 function TSocketImpl.GetIsOpen: Boolean;
@@ -954,12 +960,13 @@ function TBufferedStreamImpl.IsOpen: Boolean;
 begin
   Result := (FWriteBuffer <> nil)
         and (FReadBuffer <> nil)
-        and (FStream <> nil);
+        and (FStream <> nil)
+        and FStream.IsOpen;
 end;
 
 procedure TBufferedStreamImpl.Open;
 begin
-  // nothing to do
+  FStream.Open;
 end;
 
 function TBufferedStreamImpl.Read( const pBuf : Pointer; const buflen : Integer; offset: Integer; count: Integer): Integer;
@@ -1072,7 +1079,7 @@ end;
 
 function TStreamTransportImpl.GetOutputStream: IThriftStream;
 begin
-  Result := FInputStream;
+  Result := FOutputStream;
 end;
 
 procedure TStreamTransportImpl.Open;
@@ -1106,17 +1113,19 @@ begin
   Create( ATransport, 1024 );
 end;
 
-procedure TBufferedTransportImpl.Close;
-begin
-  FTransport.Close;
-end;
-
 constructor TBufferedTransportImpl.Create( const ATransport: IStreamTransport;  ABufSize: Integer);
 begin
   inherited Create;
   FTransport := ATransport;
   FBufSize := ABufSize;
   InitBuffers;
+end;
+
+procedure TBufferedTransportImpl.Close;
+begin
+  FTransport.Close;
+  FInputBuffer := nil;
+  FOutputBuffer := nil;  
 end;
 
 procedure TBufferedTransportImpl.Flush;
@@ -1148,7 +1157,8 @@ end;
 
 procedure TBufferedTransportImpl.Open;
 begin
-  FTransport.Open
+  FTransport.Open;
+  InitBuffers;  // we need to get the buffers to match FTransport substreams again
 end;
 
 function TBufferedTransportImpl.Read( const pBuf : Pointer; const buflen : Integer; off: Integer; len: Integer): Integer;

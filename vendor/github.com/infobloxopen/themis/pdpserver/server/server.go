@@ -9,6 +9,7 @@ import (
 	"io"
 	"net"
 	"net/http"
+	"os"
 	"sync"
 	"time"
 
@@ -133,20 +134,6 @@ func WithMemProfDumping(path string, numGC uint32, delay time.Duration) Option {
 	}
 }
 
-// WithPolicyFile returns a Option which sets policy file
-func WithPolicyFile(policyFile string) Option {
-	return func(o *options) {
-		o.policyFile = policyFile
-	}
-}
-
-// WithContentFiles returns a Option which sets list of content files
-func WithContentFiles(contentFiles []string) Option {
-	return func(o *options) {
-		o.contentFiles = contentFiles
-	}
-}
-
 const memStatsCheckInterval = 100 * time.Millisecond
 
 type options struct {
@@ -169,15 +156,10 @@ type options struct {
 	memProfDumpPath     string
 	memProfNumGC        uint32
 	memProfDelay        time.Duration
-
-	policyFile   string
-	contentFiles []string
 }
 
 // Server structure is PDP server object
 type Server struct {
-	*PDPService
-
 	sync.RWMutex
 
 	opts options
@@ -193,11 +175,16 @@ type Server struct {
 
 	q *queue
 
+	p *pdp.PolicyStorage
+	c *pdp.LocalContentStorage
+
 	softMemWarn *time.Time
 	backMemWarn *time.Time
 	fragMemWarn *time.Time
 
 	memProfBaseDumpDone chan uint32
+
+	pool bytePool
 }
 
 // NewServer returns new Server instance
@@ -222,15 +209,44 @@ func NewServer(opts ...Option) *Server {
 		memProfBaseDumpDone = make(chan uint32)
 	}
 
-	s := &Server{
+	var pool bytePool
+	if !o.autoResponseSize {
+		pool = makeBytePool(int(o.maxResponseSize), false)
+	}
+
+	return &Server{
 		opts:                o,
 		errCh:               make(chan error, 100),
 		q:                   newQueue(),
+		c:                   pdp.NewLocalContentStorage(nil),
 		memProfBaseDumpDone: memProfBaseDumpDone,
+		pool:                pool,
+	}
+}
+
+// LoadPolicies loads policies from file
+func (s *Server) LoadPolicies(path string) error {
+	if len(path) <= 0 {
+		return nil
 	}
 
-	s.PDPService = NewPDPService(o)
-	return s
+	s.opts.logger.WithField("policy", path).Info("Loading policy")
+	pf, err := os.Open(path)
+	if err != nil {
+		s.opts.logger.WithFields(log.Fields{"policy": path, "error": err}).Error("Failed load policy")
+		return err
+	}
+
+	s.opts.logger.WithField("policy", path).Info("Parsing policy")
+	p, err := s.opts.parser.Unmarshal(pf, nil)
+	if err != nil {
+		s.opts.logger.WithFields(log.Fields{"policy": path, "error": err}).Error("Failed parse policy")
+		return err
+	}
+
+	s.p = p
+
+	return nil
 }
 
 // ReadPolicies reads policies with using io.Reader instance
@@ -247,6 +263,38 @@ func (s *Server) ReadPolicies(r io.Reader) error {
 	}
 
 	s.p = p
+
+	return nil
+}
+
+// LoadContent loads content from files
+func (s *Server) LoadContent(paths []string) error {
+	items := []*pdp.LocalContent{}
+	for _, path := range paths {
+		err := func() error {
+			s.opts.logger.WithField("content", path).Info("Opening content")
+			f, err := os.Open(path)
+			if err != nil {
+				return err
+			}
+
+			defer f.Close()
+
+			s.opts.logger.WithField("content", path).Info("Parsing content")
+			item, err := jcon.Unmarshal(f, nil)
+			if err != nil {
+				return err
+			}
+
+			items = append(items, item)
+			return nil
+		}()
+		if err != nil {
+			return err
+		}
+	}
+
+	s.c = pdp.NewLocalContentStorage(items)
 
 	return nil
 }

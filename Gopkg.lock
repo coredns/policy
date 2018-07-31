@@ -8,6 +8,15 @@
   version = "v1.17.0"
 
 [[projects]]
+  name = "github.com/allegro/bigcache"
+  packages = [
+    ".",
+    "queue"
+  ]
+  revision = "f31987a23e44c5121ef8c8b2f2ea2e8ffa37b068"
+  version = "v1.1.0"
+
+[[projects]]
   name = "github.com/apache/thrift"
   packages = ["lib/go/thrift"]
   revision = "e59b73d3c2bf1c328ccb78e683c0462fa1a473c7"
@@ -19,6 +28,7 @@
   revision = "3a771d992973f24aa725d07868b467d1ddfceafb"
 
 [[projects]]
+  branch = "master"
   name = "github.com/coredns/coredns"
   packages = [
     "core/dnsserver",
@@ -29,6 +39,7 @@
     "plugin/cache",
     "plugin/cache/freq",
     "plugin/chaos",
+    "plugin/debug",
     "plugin/dnstap",
     "plugin/dnstap/dnstapio",
     "plugin/dnstap/msg",
@@ -42,11 +53,13 @@
     "plugin/forward",
     "plugin/health",
     "plugin/log",
+    "plugin/metadata",
     "plugin/metrics",
     "plugin/metrics/vars",
     "plugin/pkg/cache",
     "plugin/pkg/dnstest",
     "plugin/pkg/dnsutil",
+    "plugin/pkg/doh",
     "plugin/pkg/edns",
     "plugin/pkg/fuzz",
     "plugin/pkg/healthcheck",
@@ -61,6 +74,7 @@
     "plugin/pkg/uniq",
     "plugin/pkg/up",
     "plugin/pkg/upstream",
+    "plugin/pkg/watch",
     "plugin/pprof",
     "plugin/proxy",
     "plugin/rewrite",
@@ -69,8 +83,7 @@
     "plugin/whoami",
     "request"
   ]
-  revision = "b0fd575c658c22d082e1ac776a15ad8d188e76f7"
-  version = "v1.1.3"
+  revision = "2b4878195c58a37df1e491cfb581523e6d4aa058"
 
 [[projects]]
   name = "github.com/davecgh/go-spew"
@@ -94,7 +107,7 @@
   branch = "master"
   name = "github.com/eapache/go-xerial-snappy"
   packages = ["."]
-  revision = "bb955e01b9346ac19dc29eb16586c90ded99a98c"
+  revision = "040cc1a32f578808623071247fdbd5cc43f37f5f"
 
 [[projects]]
   name = "github.com/eapache/queue"
@@ -109,12 +122,6 @@
   revision = "c06a5734334d9629b3db143d74b47eb94ea68612"
 
 [[projects]]
-  branch = "master"
-  name = "github.com/flynn/go-shlex"
-  packages = ["."]
-  revision = "3f9db97f856818214da2e1057f8ad84803971cff"
-
-[[projects]]
   name = "github.com/go-logfmt/logfmt"
   packages = ["."]
   revision = "390ab7935ee28ec6b286364bba9b4dd6410cb3d5"
@@ -123,8 +130,8 @@
 [[projects]]
   name = "github.com/gogo/protobuf"
   packages = ["proto"]
-  revision = "1adfc126b41513cc696b209667c8656ea7aac67c"
-  version = "v1.0.0"
+  revision = "636bf0302bc95575d69441b25a2603156ffdddf1"
+  version = "v1.1.1"
 
 [[projects]]
   name = "github.com/golang/protobuf"
@@ -185,6 +192,7 @@
   branch = "master"
   name = "github.com/infobloxopen/themis"
   packages = [
+    "contrib/coredns/policy/dnstap",
     "jparser",
     "pdp",
     "pdp-control",
@@ -193,10 +201,12 @@
     "pdp/ast/jast",
     "pdp/ast/yast",
     "pdp/jcon",
+    "pdp/selector",
+    "pdp/selector/local",
     "pdpserver/server",
     "pep"
   ]
-  revision = "c66c00d3f725786dc1a572a2d1387e00538f8d0d"
+  revision = "515f1dfb0748084c35e241b1f4bc411033f41e32"
 
 [[projects]]
   branch = "master"
@@ -209,24 +219,6 @@
   packages = ["pbutil"]
   revision = "c12348ce28de40eed0136aa2b644d0ee0650e56c"
   version = "v1.0.1"
-
-[[projects]]
-  name = "github.com/mholt/caddy"
-  packages = [
-    ".",
-    "caddyfile",
-    "onevent",
-    "onevent/hook",
-    "telemetry"
-  ]
-  revision = "1f7b5abc80679fb71ee0e04ed98cbe284b1fc181"
-  version = "v0.11.0"
-
-[[projects]]
-  name = "github.com/miekg/dns"
-  packages = ["."]
-  revision = "5a2b9fab83ff0f8bfc99684bd5f43a37abe560f1"
-  version = "v1.0.8"
 
 [[projects]]
   branch = "master"
@@ -259,15 +251,18 @@
 
 [[projects]]
   name = "github.com/pierrec/lz4"
-  packages = ["."]
-  revision = "2fcda4cb7018ce05a25959d2fe08c83e3329f169"
-  version = "v1.1"
+  packages = [
+    ".",
+    "internal/xxh32"
+  ]
+  revision = "1958fd8fff7f115e79725b1288e0b878b3e06b00"
+  version = "v2.0.3"
 
 [[projects]]
-  name = "github.com/pierrec/xxHash"
-  packages = ["xxHash32"]
-  revision = "f051bb7f1d1aaf1b5a665d74fb6b0217712c69f7"
-  version = "v0.1.1"
+  name = "github.com/pmezard/go-difflib"
+  packages = ["difflib"]
+  revision = "792786c7400a136282c1664665ae0a8db921c6c2"
+  version = "v1.0.0"
 
 [[projects]]
   name = "github.com/prometheus/client_golang"
@@ -282,7 +277,7 @@
   branch = "master"
   name = "github.com/prometheus/client_model"
   packages = ["go"]
-  revision = "99fa1f4be8e564e8a6b613da7fa6f46c9edafc6c"
+  revision = "5c3871d89910bfb32f5fcab2aa4b9ec68e65a99f"
 
 [[projects]]
   branch = "master"
@@ -303,7 +298,7 @@
     "nfs",
     "xfs"
   ]
-  revision = "94663424ae5ae9856b40a9f170762b4197024661"
+  revision = "05ee40e3a273f7245e8777337fc7b46e533a9a92"
 
 [[projects]]
   branch = "master"
@@ -314,37 +309,28 @@
 [[projects]]
   name = "github.com/sirupsen/logrus"
   packages = ["."]
-  revision = "c155da19408a8799da419ed3eeb0cb5db0ad5dbc"
-  version = "v1.0.5"
+  revision = "3e01752db0189b9157070a0e1668a620f9a85da2"
+  version = "v1.0.6"
 
 [[projects]]
   branch = "master"
   name = "golang.org/x/crypto"
-  packages = [
-    "ed25519",
-    "ed25519/internal/edwards25519",
-    "ssh/terminal"
-  ]
-  revision = "8ac0e0d97ce45cd83d1d7243c060cb8461dda5e9"
+  packages = ["ssh/terminal"]
+  revision = "c126467f60eb25f8f27e5a981f32a87e3965053f"
 
 [[projects]]
   branch = "master"
   name = "golang.org/x/net"
   packages = [
-    "bpf",
     "context",
     "http/httpguts",
     "http2",
     "http2/hpack",
     "idna",
-    "internal/iana",
-    "internal/socket",
     "internal/timeseries",
-    "ipv4",
-    "ipv6",
     "trace"
   ]
-  revision = "1e491301e022f8f977054da4c2d852decd59571f"
+  revision = "49c15d80dfbc983ea25246ee959d970efe09ec09"
 
 [[projects]]
   branch = "master"
@@ -353,7 +339,7 @@
     "unix",
     "windows"
   ]
-  revision = "9527bec2660bd847c050fda93a0f0c6dee0800bb"
+  revision = "bd9dbc187b6e1dacfdd2722a87e83093c2d7bd6e"
 
 [[projects]]
   name = "golang.org/x/text"
@@ -380,7 +366,7 @@
   branch = "master"
   name = "google.golang.org/genproto"
   packages = ["googleapis/rpc/status"]
-  revision = "81158efcc9f219c511e4d3c0d61a0e6e49c01a24"
+  revision = "daca94659cb50e9f37c1b834680f2e46358f10b0"
 
 [[projects]]
   name = "google.golang.org/grpc"
@@ -389,15 +375,16 @@
     "balancer",
     "balancer/base",
     "balancer/roundrobin",
-    "channelz",
     "codes",
     "connectivity",
     "credentials",
     "encoding",
     "encoding/proto",
-    "grpclb/grpc_lb_v1/messages",
     "grpclog",
     "internal",
+    "internal/backoff",
+    "internal/channelz",
+    "internal/grpcrand",
     "keepalive",
     "metadata",
     "naming",
@@ -410,8 +397,8 @@
     "tap",
     "transport"
   ]
-  revision = "7a6a684ca69eb4cae85ad0a484f2e531598c047b"
-  version = "v1.12.2"
+  revision = "168a6198bcb0ef175f7dacec0b8691fc141dc9b8"
+  version = "v1.13.0"
 
 [[projects]]
   name = "gopkg.in/yaml.v2"
@@ -422,6 +409,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "93a13c49654a014c9e97ded1b6d5301e9a3529810acddf8683c2f81d036853fd"
+  inputs-digest = "9c4d16b2fd2608b9e19b15e7613aeccd1f5319b25abedd24b9774b50f1b497c0"
   solver-name = "gps-cdcl"
   solver-version = 1

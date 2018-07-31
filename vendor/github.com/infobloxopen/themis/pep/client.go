@@ -183,22 +183,6 @@ func WithCacheTTLAndMaxSize(ttl time.Duration, size int) Option {
 	}
 }
 
-// WithPolicyFile returns an Option which specifies policy file used by
-// the builtinClient.
-func WithPolicyFile(policyFile string) Option {
-	return func(o *options) {
-		o.policyFile = policyFile
-	}
-}
-
-// WithContentFiles returns an Option which specifies content files used by
-// the builtinClient.
-func WithContentFiles(contentFiles []string) Option {
-	return func(o *options) {
-		o.contentFiles = contentFiles
-	}
-}
-
 const (
 	noBalancer = iota
 	roundRobinBalancer
@@ -218,8 +202,6 @@ type options struct {
 	cache           bool
 	cacheTTL        time.Duration
 	cacheMaxSize    int
-	policyFile      string
-	contentFiles    []string
 }
 
 // NewClient creates client instance using given options.
@@ -230,10 +212,6 @@ func NewClient(opts ...Option) Client {
 	}
 	for _, opt := range opts {
 		opt(&o)
-	}
-
-	if o.policyFile != "" {
-		return newBuiltinClient(o)
 	}
 
 	if o.maxStreams > 0 {

@@ -2,143 +2,16 @@ package server
 
 import (
 	"fmt"
-	"github.com/infobloxopen/themis/pdp"
-	pb "github.com/infobloxopen/themis/pdp-service"
-	"github.com/infobloxopen/themis/pdp/ast"
-	"github.com/infobloxopen/themis/pdp/jcon"
+	"strings"
+
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/net/context"
-	"os"
-	"path/filepath"
-	"strings"
-	"sync"
+
+	"github.com/infobloxopen/themis/pdp"
+	pb "github.com/infobloxopen/themis/pdp-service"
 )
 
-type PDPService struct {
-	sync.RWMutex
-
-	opts options
-
-	p *pdp.PolicyStorage
-	c *pdp.LocalContentStorage
-
-	pool bytePool
-}
-
-func NewBuiltinPDPService(policyFile string, contentFiles []string) *PDPService {
-	var opts options
-	return NewPDPService(opts,
-		WithPolicyFile(policyFile),
-		WithContentFiles(contentFiles),
-		WithLogger(log.StandardLogger()),
-		WithMaxResponseSize(10240))
-}
-
-//func NewBuiltinPDPService(policyFile string, contentFiles []string, logger *log.Logger) *PDPService {
-func NewPDPService(options options, addOpts ...Option) *PDPService {
-	s := &PDPService{
-		opts: options,
-		c:    pdp.NewLocalContentStorage(nil),
-	}
-
-	for _, opt := range addOpts {
-		opt(&s.opts)
-	}
-
-	if s.opts.policyFile != "" {
-		ext := filepath.Ext(s.opts.policyFile)
-		switch ext {
-		case ".json":
-			s.opts.parser = ast.NewJSONParser()
-		case ".yaml":
-			s.opts.parser = ast.NewYAMLParser()
-		}
-	}
-
-	if s.opts.parser == nil {
-		s.opts.parser = ast.NewYAMLParser()
-	}
-
-	log.SetLevel(log.DebugLevel)
-	err := s.LoadPolicies(s.opts.policyFile)
-	if err != nil {
-		return nil
-	}
-
-	if s.opts.contentFiles != nil && len(s.opts.contentFiles) > 0 {
-		err = s.LoadContent(s.opts.contentFiles)
-		if err != nil {
-			return nil
-		}
-	} else {
-		s.c = pdp.NewLocalContentStorage(nil)
-	}
-
-	if !s.opts.autoResponseSize {
-		s.pool = makeBytePool(int(s.opts.maxResponseSize), false)
-	}
-
-	return s
-}
-
-// LoadPolicies loads policies from file
-func (s *PDPService) LoadPolicies(path string) error {
-	if len(path) <= 0 {
-		return nil
-	}
-
-	s.opts.logger.WithField("policy", path).Info("Loading policy")
-	pf, err := os.Open(path)
-	if err != nil {
-		s.opts.logger.WithFields(log.Fields{"policy": path, "error": err}).Error("Failed load policy")
-		return err
-	}
-
-	s.opts.logger.WithField("policy", path).Info("Parsing policy")
-	p, err := s.opts.parser.Unmarshal(pf, nil)
-	if err != nil {
-		s.opts.logger.WithFields(log.Fields{"policy": path, "error": err}).Error("Failed parse policy")
-		return err
-	}
-
-	s.p = p
-
-	return nil
-}
-
-// LoadContent loads content from files
-func (s *PDPService) LoadContent(paths []string) error {
-	items := []*pdp.LocalContent{}
-	for _, path := range paths {
-		err := func() error {
-			s.opts.logger.WithField("content", path).Info("Opening content")
-			f, err := os.Open(path)
-			if err != nil {
-				return err
-			}
-
-			defer f.Close()
-
-			s.opts.logger.WithField("content", path).Info("Parsing content")
-			item, err := jcon.Unmarshal(f, nil)
-			if err != nil {
-				return err
-			}
-
-			items = append(items, item)
-			return nil
-		}()
-		if err != nil {
-			return err
-		}
-	}
-
-	s.c = pdp.NewLocalContentStorage(items)
-
-	return nil
-}
-
-func (s *PDPService) newContext(c *pdp.LocalContentStorage, in []byte) (*pdp.Context, error) {
+func (s *Server) newContext(c *pdp.LocalContentStorage, in []byte) (*pdp.Context, error) {
 	ctx, err := pdp.NewContextFromBytes(c, in)
 	if err != nil {
 		return nil, newContextCreationError(err)
@@ -174,7 +47,7 @@ func makeFailureResponseWithBuffer(b []byte, err error) []byte {
 	return b[:n]
 }
 
-func (s *PDPService) rawValidate(p *pdp.PolicyStorage, c *pdp.LocalContentStorage, in []byte) []byte {
+func (s *Server) rawValidate(p *pdp.PolicyStorage, c *pdp.LocalContentStorage, in []byte) []byte {
 	if p == nil {
 		return makeFailureResponse(newMissingPolicyError())
 	}
@@ -209,7 +82,7 @@ func (s *PDPService) rawValidate(p *pdp.PolicyStorage, c *pdp.LocalContentStorag
 	return out
 }
 
-func (s *PDPService) rawValidateWithAllocator(p *pdp.PolicyStorage, c *pdp.LocalContentStorage, in []byte, f func(n int) ([]byte, error)) []byte {
+func (s *Server) rawValidateWithAllocator(p *pdp.PolicyStorage, c *pdp.LocalContentStorage, in []byte, f func(n int) ([]byte, error)) []byte {
 	if p == nil {
 		return makeFailureResponseWithAllocator(f, newMissingPolicyError())
 	}
@@ -244,7 +117,7 @@ func (s *PDPService) rawValidateWithAllocator(p *pdp.PolicyStorage, c *pdp.Local
 	return out
 }
 
-func (s *PDPService) rawValidateToBuffer(p *pdp.PolicyStorage, c *pdp.LocalContentStorage, in []byte, out []byte) []byte {
+func (s *Server) rawValidateToBuffer(p *pdp.PolicyStorage, c *pdp.LocalContentStorage, in []byte, out []byte) []byte {
 	if p == nil {
 		return makeFailureResponseWithBuffer(out, newMissingPolicyError())
 	}
@@ -281,7 +154,7 @@ func (s *PDPService) rawValidateToBuffer(p *pdp.PolicyStorage, c *pdp.LocalConte
 
 // Validate is a server handler for gRPC call
 // It handles PDP decision requests
-func (s *PDPService) Validate(ctx context.Context, in *pb.Msg) (*pb.Msg, error) {
+func (s *Server) Validate(ctx context.Context, in *pb.Msg) (*pb.Msg, error) {
 	s.RLock()
 	p := s.p
 	c := s.c

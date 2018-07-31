@@ -1,21 +1,17 @@
 package test
 
 import (
-	"io/ioutil"
-	"log"
+	"context"
 	"testing"
 	"time"
 
 	"github.com/miekg/dns"
-	"golang.org/x/net/context"
 	"google.golang.org/grpc"
 
 	"github.com/coredns/coredns/pb"
 )
 
 func TestGrpc(t *testing.T) {
-	log.SetOutput(ioutil.Discard)
-
 	corefile := `grpc://.:0 {
 		whoami
 }

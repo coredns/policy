@@ -3,6 +3,7 @@
 package route53
 
 import (
+	"context"
 	"net"
 
 	"github.com/coredns/coredns/plugin"
@@ -12,7 +13,6 @@ import (
 	"github.com/aws/aws-sdk-go/service/route53"
 	"github.com/aws/aws-sdk-go/service/route53/route53iface"
 	"github.com/miekg/dns"
-	"golang.org/x/net/context"
 )
 
 // Route53 is a plugin that returns RR from AWS route53
@@ -50,6 +50,8 @@ func (rr Route53) ServeDNS(ctx context.Context, w dns.ResponseWriter, r *dns.Msg
 		answers = a(qname, output.ResourceRecordSets)
 	case dns.TypeAAAA:
 		answers = aaaa(qname, output.ResourceRecordSets)
+	case dns.TypePTR:
+		answers = ptr(qname, output.ResourceRecordSets)
 	}
 
 	if len(answers) == 0 {
@@ -58,7 +60,7 @@ func (rr Route53) ServeDNS(ctx context.Context, w dns.ResponseWriter, r *dns.Msg
 
 	m := new(dns.Msg)
 	m.SetReply(r)
-	m.Authoritative, m.RecursionAvailable, m.Compress = true, true, true
+	m.Authoritative, m.RecursionAvailable = true, true
 	m.Answer = answers
 
 	state.SizeAndDo(m)
@@ -87,6 +89,19 @@ func aaaa(zone string, rrss []*route53.ResourceRecordSet) []dns.RR {
 			r := new(dns.AAAA)
 			r.Hdr = dns.RR_Header{Name: zone, Rrtype: dns.TypeAAAA, Class: dns.ClassINET, Ttl: uint32(aws.Int64Value(rrs.TTL))}
 			r.AAAA = net.ParseIP(aws.StringValue(rr.Value)).To16()
+			answers = append(answers, r)
+		}
+	}
+	return answers
+}
+
+func ptr(zone string, rrss []*route53.ResourceRecordSet) []dns.RR {
+	answers := []dns.RR{}
+	for _, rrs := range rrss {
+		for _, rr := range rrs.ResourceRecords {
+			r := new(dns.PTR)
+			r.Hdr = dns.RR_Header{Name: zone, Rrtype: dns.TypePTR, Class: dns.ClassINET, Ttl: uint32(aws.Int64Value(rrs.TTL))}
+			r.Ptr = aws.StringValue(rr.Value)
 			answers = append(answers, r)
 		}
 	}

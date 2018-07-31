@@ -3,7 +3,6 @@ package pdp
 import (
 	"fmt"
 	"net"
-	"testing"
 
 	"github.com/infobloxopen/go-trees/domain"
 	"github.com/infobloxopen/go-trees/domaintree"
@@ -486,16 +485,21 @@ func serializeAssignmentsForAssert(desc string, expected bool, a []AttributeAssi
 	return out, nil
 }
 
-func AssertAttributeAssignments(t *testing.T, desc string, a []AttributeAssignment, e ...AttributeAssignment) {
+type errorF interface {
+	Error(args ...interface{})
+	Errorf(format string, args ...interface{})
+}
+
+func AssertAttributeAssignments(ef errorF, desc string, a []AttributeAssignment, e ...AttributeAssignment) {
 	sa, err := serializeAssignmentsForAssert(desc, false, a)
 	if err != nil {
-		t.Error(err)
+		ef.Error(err)
 		return
 	}
 
 	se, err := serializeAssignmentsForAssert(desc, true, e)
 	if err != nil {
-		t.Error(err)
+		ef.Error(err)
 		return
 	}
 
@@ -511,6 +515,6 @@ func AssertAttributeAssignments(t *testing.T, desc string, a []AttributeAssignme
 	}
 
 	if len(diff) > 0 {
-		t.Errorf("\"%s\" doesn't match:\n%s", desc, diff)
+		ef.Errorf("\"%s\" doesn't match:\n%s", desc, diff)
 	}
 }

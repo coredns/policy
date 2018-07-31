@@ -100,7 +100,7 @@ private:
   string gen_dir_;
 
   // File to which generated code is written.
-  std::ofstream f_gen_;
+  ofstream_with_content_based_conditional_update f_gen_;
 
   // Write the common compiler attributes and module includes to the top of the auto-generated file.
   void render_attributes_and_includes();
@@ -781,8 +781,8 @@ void t_rs_generator::render_const_map(t_type* ttype, t_const_value* tvalue) {
     << to_rust_type(key_type) << ", " << to_rust_type(val_type)
     << "> = BTreeMap::new();"
     << endl;
-  const map<t_const_value*, t_const_value*>& elems = tvalue->get_map();
-  map<t_const_value*, t_const_value*>::const_iterator elem_iter;
+  const map<t_const_value*, t_const_value*, t_const_value::value_compare>& elems = tvalue->get_map();
+  map<t_const_value*, t_const_value*, t_const_value::value_compare>::const_iterator elem_iter;
   for (elem_iter = elems.begin(); elem_iter != elems.end(); ++elem_iter) {
     t_const_value* key_value = elem_iter->first;
     t_const_value* val_value = elem_iter->second;
@@ -2505,7 +2505,7 @@ void t_rs_generator::render_sync_processor_definition_and_impl(t_service *tservi
   indent_up();
   f_gen_ << indent() << service_processor_name << " {" << endl;
   indent_up();
-  f_gen_ << indent() << "handler: handler," << endl;
+  f_gen_ << indent() << "handler," << endl;
   indent_down();
   f_gen_ << indent() << "}" << endl;
   indent_down();

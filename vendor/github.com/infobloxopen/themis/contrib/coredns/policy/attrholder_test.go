@@ -256,7 +256,7 @@ func TestActionIpResponse(t *testing.T) {
 				Effect: pdp.EffectPermit,
 			},
 			initAction: actionLog,
-			action:     actionLog,
+			action:     actionAllow,
 		},
 		{
 			res: &pdp.Response{

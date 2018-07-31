@@ -3,7 +3,6 @@ package mocktracer
 import (
 	"net/http"
 	"reflect"
-	"sync"
 	"testing"
 	"time"
 
@@ -266,19 +265,4 @@ func TestMockTracer_Propagation(t *testing.T) {
 		assert.Equal(t, test.sampled, extractedContext.(MockSpanContext).Sampled)
 		assert.Equal(t, "y:z", extractedContext.(MockSpanContext).Baggage["x"])
 	}
-}
-
-func TestMockSpan_Races(t *testing.T) {
-	span := New().StartSpan("x")
-	var wg sync.WaitGroup
-	wg.Add(2)
-	go func() {
-		defer wg.Done()
-		span.SetBaggageItem("test_key", "test_value")
-	}()
-	go func() {
-		defer wg.Done()
-		span.Context()
-	}()
-	wg.Wait()
 }

@@ -3,22 +3,24 @@ package health
 
 import (
 	"io"
-	"log"
 	"net"
 	"net/http"
 	"sync"
 	"time"
+
+	clog "github.com/coredns/coredns/plugin/pkg/log"
 )
 
-var once sync.Once
+var log = clog.NewWithPlugin("health")
 
 // Health implements healthchecks by polling plugins.
 type health struct {
 	Addr     string
 	lameduck time.Duration
 
-	ln  net.Listener
-	mux *http.ServeMux
+	ln      net.Listener
+	nlSetup bool
+	mux     *http.ServeMux
 
 	// A slice of Healthers that the health plugin will poll every second for their health status.
 	h []Healther
@@ -39,52 +41,51 @@ func (h *health) OnStartup() error {
 		h.Addr = defAddr
 	}
 
-	once.Do(func() {
-		ln, err := net.Listen("tcp", h.Addr)
-		if err != nil {
-			log.Printf("[ERROR] Failed to start health handler: %s", err)
+	ln, err := net.Listen("tcp", h.Addr)
+	if err != nil {
+		return err
+	}
+
+	h.ln = ln
+	h.mux = http.NewServeMux()
+	h.nlSetup = true
+
+	h.mux.HandleFunc(path, func(w http.ResponseWriter, r *http.Request) {
+		if h.Ok() {
+			w.WriteHeader(http.StatusOK)
+			io.WriteString(w, ok)
 			return
 		}
-
-		h.ln = ln
-
-		h.mux = http.NewServeMux()
-
-		h.mux.HandleFunc(path, func(w http.ResponseWriter, r *http.Request) {
-			if h.Ok() {
-				w.WriteHeader(http.StatusOK)
-				io.WriteString(w, ok)
-				return
-			}
-			w.WriteHeader(http.StatusServiceUnavailable)
-		})
-
-		go func() {
-			http.Serve(h.ln, h.mux)
-		}()
-		go func() {
-			h.overloaded()
-		}()
+		w.WriteHeader(http.StatusServiceUnavailable)
 	})
+
+	go func() { http.Serve(h.ln, h.mux) }()
+	go func() { h.overloaded() }()
+
 	return nil
 }
 
-func (h *health) OnShutdown() error {
+func (h *health) OnRestart() error { return h.OnFinalShutdown() }
+
+func (h *health) OnFinalShutdown() error {
+	if !h.nlSetup {
+		return nil
+	}
+
 	// Stop polling plugins
 	h.pollstop <- true
 	// NACK health
 	h.SetOk(false)
 
 	if h.lameduck > 0 {
-		log.Printf("[INFO] Going into lameduck mode for %s", h.lameduck)
+		log.Infof("Going into lameduck mode for %s", h.lameduck)
 		time.Sleep(h.lameduck)
 	}
 
-	if h.ln != nil {
-		return h.ln.Close()
-	}
+	h.ln.Close()
 
 	h.stop <- true
+	h.nlSetup = false
 	return nil
 }
 

@@ -1,8 +1,6 @@
 package test
 
 import (
-	"io/ioutil"
-	"log"
 	"testing"
 
 	"github.com/coredns/coredns/plugin/proxy"
@@ -34,7 +32,7 @@ func TestLookupDS(t *testing.T) {
 	t.Parallel()
 	name, rm, err := TempFile(".", miekNL)
 	if err != nil {
-		t.Fatalf("failed to create zone: %s", err)
+		t.Fatalf("Failed to create zone: %s", err)
 	}
 	defer rm()
 
@@ -48,8 +46,6 @@ func TestLookupDS(t *testing.T) {
 		t.Fatalf("Could not get CoreDNS serving instance: %s", err)
 	}
 	defer i.Stop()
-
-	log.SetOutput(ioutil.Discard)
 
 	p := proxy.NewLookup([]string{udp})
 	state := request.Request{W: &mtest.ResponseWriter{}, Req: new(dns.Msg)}

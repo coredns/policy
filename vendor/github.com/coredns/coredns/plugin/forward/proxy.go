@@ -2,69 +2,58 @@ package forward
 
 import (
 	"crypto/tls"
+	"runtime"
 	"sync/atomic"
 	"time"
 
 	"github.com/coredns/coredns/plugin/pkg/up"
-
-	"github.com/miekg/dns"
 )
 
 // Proxy defines an upstream host.
 type Proxy struct {
-	addr   string
-	client *dns.Client
+	avgRtt int64
+	fails  uint32
+
+	addr string
 
 	// Connection caching
 	expire    time.Duration
 	transport *transport
 
 	// health checking
-	probe *up.Probe
-	fails uint32
+	probe  *up.Probe
+	health HealthChecker
 }
 
 // NewProxy returns a new proxy.
-func NewProxy(addr string, tlsConfig *tls.Config) *Proxy {
+func NewProxy(addr string, protocol int) *Proxy {
 	p := &Proxy{
 		addr:      addr,
 		fails:     0,
 		probe:     up.New(),
-		transport: newTransport(addr, tlsConfig),
+		transport: newTransport(addr),
+		avgRtt:    int64(maxTimeout / 2),
 	}
-	p.client = dnsClient(tlsConfig)
+	p.health = NewHealthChecker(protocol)
+	runtime.SetFinalizer(p, (*Proxy).finalizer)
 	return p
 }
 
-// dnsClient returns a client used for health checking.
-func dnsClient(tlsConfig *tls.Config) *dns.Client {
-	c := new(dns.Client)
-	c.Net = "udp"
-	// TODO(miek): this should be half of hcDuration?
-	c.ReadTimeout = 1 * time.Second
-	c.WriteTimeout = 1 * time.Second
-
-	if tlsConfig != nil {
-		c.Net = "tcp-tls"
-		c.TLSConfig = tlsConfig
-	}
-	return c
+// SetTLSConfig sets the TLS config in the lower p.transport and in the healthchecking client.
+func (p *Proxy) SetTLSConfig(cfg *tls.Config) {
+	p.transport.SetTLSConfig(cfg)
+	p.health.SetTLSConfig(cfg)
 }
-
-// SetTLSConfig sets the TLS config in the lower p.transport.
-func (p *Proxy) SetTLSConfig(cfg *tls.Config) { p.transport.SetTLSConfig(cfg) }
 
 // SetExpire sets the expire duration in the lower p.transport.
 func (p *Proxy) SetExpire(expire time.Duration) { p.transport.SetExpire(expire) }
 
-// Dial connects to the host in p with the configured transport.
-func (p *Proxy) Dial(proto string) (*dns.Conn, error) { return p.transport.Dial(proto) }
-
-// Yield returns the connection to the pool.
-func (p *Proxy) Yield(c *dns.Conn) { p.transport.Yield(c) }
-
 // Healthcheck kicks of a round of health checks for this proxy.
-func (p *Proxy) Healthcheck() { p.probe.Do(p.Check) }
+func (p *Proxy) Healthcheck() {
+	p.probe.Do(func() error {
+		return p.health.Check(p)
+	})
+}
 
 // Down returns true if this proxy is down, i.e. has *more* fails than maxfails.
 func (p *Proxy) Down(maxfails uint32) bool {
@@ -77,16 +66,17 @@ func (p *Proxy) Down(maxfails uint32) bool {
 }
 
 // close stops the health checking goroutine.
-func (p *Proxy) close() {
-	p.probe.Stop()
-	p.transport.Stop()
-}
+func (p *Proxy) close()     { p.probe.Stop() }
+func (p *Proxy) finalizer() { p.transport.Stop() }
 
 // start starts the proxy's healthchecking.
-func (p *Proxy) start(duration time.Duration) { p.probe.Start(duration) }
+func (p *Proxy) start(duration time.Duration) {
+	p.probe.Start(duration)
+	p.transport.Start()
+}
 
 const (
-	dialTimeout = 4 * time.Second
-	timeout     = 2 * time.Second
-	hcDuration  = 500 * time.Millisecond
+	maxTimeout = 2 * time.Second
+	minTimeout = 200 * time.Millisecond
+	hcInterval = 500 * time.Millisecond
 )

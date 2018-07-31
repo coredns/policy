@@ -14,8 +14,22 @@ reviewers:
   - superq
   - varyoo
   - yongtang
+
 approvers:
   - chrisohaver
   - johnbelamaric
   - miekg
   - yongtang
+
+features:
+  - comments
+  - reviewers
+  - aliases
+  - branches
+  - exec
+
+aliases:
+  - |
+    /plugin: (.*) -> /label add: plugin/$1
+  - |
+    /release: (.*) -> /exec: /opt/bin/release-coredns $1

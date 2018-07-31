@@ -5,8 +5,8 @@ import (
 	"github.com/coredns/coredns/plugin"
 	"github.com/coredns/coredns/plugin/file"
 	"github.com/coredns/coredns/plugin/pkg/parse"
-
 	"github.com/coredns/coredns/plugin/pkg/upstream"
+
 	"github.com/mholt/caddy"
 )
 
@@ -49,13 +49,12 @@ func setup(c *caddy.Controller) error {
 func secondaryParse(c *caddy.Controller) (file.Zones, error) {
 	z := make(map[string]*file.Zone)
 	names := []string{}
-	origins := []string{}
 	upstr := upstream.Upstream{}
 	for c.Next() {
 
 		if c.Val() == "secondary" {
 			// secondary [origin]
-			origins = make([]string, len(c.ServerBlockKeys))
+			origins := make([]string, len(c.ServerBlockKeys))
 			copy(origins, c.ServerBlockKeys)
 			args := c.RemainingArgs()
 			if len(args) > 0 {
@@ -81,7 +80,7 @@ func secondaryParse(c *caddy.Controller) (file.Zones, error) {
 				case "upstream":
 					args := c.RemainingArgs()
 					var err error
-					upstr, err = upstream.NewUpstream(args)
+					upstr, err = upstream.New(args)
 					if err != nil {
 						return file.Zones{}, err
 					}

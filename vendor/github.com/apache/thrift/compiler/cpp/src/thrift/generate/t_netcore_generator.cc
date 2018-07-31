@@ -38,13 +38,13 @@
 #include "thrift/generate/t_netcore_generator.h"
 
 using std::map;
-using std::ofstream;
+using std::ostream;
 using std::ostringstream;
 using std::string;
 using std::stringstream;
 using std::vector;
 
-//TODO: check for indentation 
+//TODO: check for indentation
 //TODO: Do we need seqId_ in generation?
 
 t_netcore_generator::t_netcore_generator(t_program* program, const map<string, string>& parsed_options, const string& option_string)
@@ -328,11 +328,11 @@ void t_netcore_generator::init_keywords()
     netcore_keywords["var"] = 1;
     netcore_keywords["where"] = 1;
     netcore_keywords["yield"] = 1;
-	
+
 	netcore_keywords["when"] = 1;
 }
 
-void t_netcore_generator::start_netcore_namespace(ofstream& out)
+void t_netcore_generator::start_netcore_namespace(ostream& out)
 {
     if (!namespace_name_.empty())
     {
@@ -341,7 +341,7 @@ void t_netcore_generator::start_netcore_namespace(ofstream& out)
     }
 }
 
-void t_netcore_generator::end_netcore_namespace(ofstream& out)
+void t_netcore_generator::end_netcore_namespace(ostream& out)
 {
     if (!namespace_name_.empty())
     {
@@ -398,16 +398,16 @@ void t_netcore_generator::generate_enum(t_enum* tenum)
 	int ic = indent_count();
     string f_enum_name = namespace_dir_ + "/" + tenum->get_name() + ".cs";
 
-    ofstream f_enum;
+    ofstream_with_content_based_conditional_update f_enum;
     f_enum.open(f_enum_name.c_str());
-    
+
 	generate_enum(f_enum, tenum);
 
     f_enum.close();
 	indent_validate(ic, "generate_enum");
 }
 
-void t_netcore_generator::generate_enum(ofstream& out, t_enum* tenum)
+void t_netcore_generator::generate_enum(ostream& out, t_enum* tenum)
 {
 	out << autogen_comment() << endl;
 
@@ -428,7 +428,7 @@ void t_netcore_generator::generate_enum(ofstream& out, t_enum* tenum)
 	}
 
 	scope_down(out);
-	end_netcore_namespace(out);	
+	end_netcore_namespace(out);
 }
 
 void t_netcore_generator::generate_consts(vector<t_const*> consts)
@@ -439,15 +439,15 @@ void t_netcore_generator::generate_consts(vector<t_const*> consts)
     }
 
     string f_consts_name = namespace_dir_ + '/' + program_name_ + ".Constants.cs";
-    ofstream f_consts;
+    ofstream_with_content_based_conditional_update f_consts;
     f_consts.open(f_consts_name.c_str());
 
     generate_consts(f_consts, consts);
-    
+
     f_consts.close();
 }
 
-void t_netcore_generator::generate_consts(ofstream& out, vector<t_const*> consts)
+void t_netcore_generator::generate_consts(ostream& out, vector<t_const*> consts)
 {
     if (consts.empty())
     {
@@ -482,20 +482,20 @@ void t_netcore_generator::generate_consts(ofstream& out, vector<t_const*> consts
     end_netcore_namespace(out);
 }
 
-void t_netcore_generator::print_const_def_value(ofstream& out, string name, t_type* type, t_const_value* value)
+void t_netcore_generator::print_const_def_value(ostream& out, string name, t_type* type, t_const_value* value)
 {
     if (type->is_struct() || type->is_xception())
     {
         const vector<t_field*>& fields = static_cast<t_struct*>(type)->get_members();
-        const map<t_const_value*, t_const_value*>& val = value->get_map();
+        const map<t_const_value*, t_const_value*, t_const_value::value_compare>& val = value->get_map();
         vector<t_field*>::const_iterator f_iter;
-        map<t_const_value*, t_const_value*>::const_iterator v_iter;
+        map<t_const_value*, t_const_value*, t_const_value::value_compare>::const_iterator v_iter;
         prepare_member_name_mapping(static_cast<t_struct*>(type));
 
         for (v_iter = val.begin(); v_iter != val.end(); ++v_iter)
         {
             t_field* field = NULL;
-            
+
             for (f_iter = fields.begin(); f_iter != fields.end(); ++f_iter)
             {
                 if ((*f_iter)->get_name() == v_iter->first->get_string())
@@ -510,7 +510,7 @@ void t_netcore_generator::print_const_def_value(ofstream& out, string name, t_ty
             }
 
             t_type* field_type = field->get_type();
-            
+
             string val = render_const_value(out, name, field_type, v_iter->second);
             out << indent() << name << "." << prop_name(field) << " = " << val << ";" << endl;
         }
@@ -521,8 +521,8 @@ void t_netcore_generator::print_const_def_value(ofstream& out, string name, t_ty
     {
         t_type* ktype = static_cast<t_map*>(type)->get_key_type();
         t_type* vtype = static_cast<t_map*>(type)->get_val_type();
-        const map<t_const_value*, t_const_value*>& val = value->get_map();
-        map<t_const_value*, t_const_value*>::const_iterator v_iter;
+        const map<t_const_value*, t_const_value*, t_const_value::value_compare>& val = value->get_map();
+        map<t_const_value*, t_const_value*, t_const_value::value_compare>::const_iterator v_iter;
         for (v_iter = val.begin(); v_iter != val.end(); ++v_iter)
         {
             string key = render_const_value(out, name, ktype, v_iter->first);
@@ -552,7 +552,7 @@ void t_netcore_generator::print_const_def_value(ofstream& out, string name, t_ty
     }
 }
 
-void t_netcore_generator::print_const_constructor(ofstream& out, vector<t_const*> consts)
+void t_netcore_generator::print_const_constructor(ostream& out, vector<t_const*> consts)
 {
     out << indent() << "static " << make_valid_csharp_identifier(program_name_).c_str() << "Constants()" << endl;
     scope_up(out);
@@ -569,7 +569,7 @@ void t_netcore_generator::print_const_constructor(ofstream& out, vector<t_const*
     scope_down(out);
 }
 
-bool t_netcore_generator::print_const_value(ofstream& out, string name, t_type* type, t_const_value* value, bool in_static, bool defval, bool needtype)
+bool t_netcore_generator::print_const_value(ostream& out, string name, t_type* type, t_const_value* value, bool in_static, bool defval, bool needtype)
 {
     out << indent();
     bool need_static_construction = !in_static;
@@ -615,7 +615,7 @@ bool t_netcore_generator::print_const_value(ofstream& out, string name, t_type* 
     return need_static_construction;
 }
 
-string t_netcore_generator::render_const_value(ofstream& out, string name, t_type* type, t_const_value* value)
+string t_netcore_generator::render_const_value(ostream& out, string name, t_type* type, t_const_value* value)
 {
     (void)name;
     ostringstream render;
@@ -687,7 +687,7 @@ void t_netcore_generator::generate_netcore_struct(t_struct* tstruct, bool is_exc
     int ic = indent_count();
 
     string f_struct_name = namespace_dir_ + "/" + (tstruct->get_name()) + ".cs";
-    ofstream f_struct;
+    ofstream_with_content_based_conditional_update f_struct;
 
     f_struct.open(f_struct_name.c_str());
 
@@ -700,7 +700,7 @@ void t_netcore_generator::generate_netcore_struct(t_struct* tstruct, bool is_exc
     indent_validate(ic, "generate_netcore_struct");
 }
 
-void t_netcore_generator::generate_netcore_struct_definition(ofstream& out, t_struct* tstruct, bool is_exception, bool in_class, bool is_result)
+void t_netcore_generator::generate_netcore_struct_definition(ostream& out, t_struct* tstruct, bool is_exception, bool in_class, bool is_result)
 {
     if (!in_class)
     {
@@ -723,7 +723,7 @@ void t_netcore_generator::generate_netcore_struct_definition(ofstream& out, t_st
 
     out << indent() << "public " << (is_final ? "sealed " : "") << "partial class " << sharp_struct_name << " : ";
 
-    if (is_exception) 
+    if (is_exception)
     {
         out << "TException, ";
     }
@@ -786,7 +786,7 @@ void t_netcore_generator::generate_netcore_struct_definition(ofstream& out, t_st
         out << indent() << "public struct Isset" << endl
             << indent() << "{" << endl;
         indent_up();
-        
+
         for (m_iter = members.begin(); m_iter != members.end(); ++m_iter)
         {
             bool is_required = field_is_required((*m_iter));
@@ -912,7 +912,7 @@ void t_netcore_generator::generate_netcore_struct_definition(ofstream& out, t_st
         generate_netcore_struct_hashcode(out, tstruct);
     }
     generate_netcore_struct_tostring(out, tstruct);
-    
+
     indent_down();
     out << indent() << "}" << endl << endl;
 
@@ -929,7 +929,7 @@ void t_netcore_generator::generate_netcore_struct_definition(ofstream& out, t_st
     }
 }
 
-void t_netcore_generator::generate_netcore_wcffault(ofstream& out, t_struct* tstruct)
+void t_netcore_generator::generate_netcore_wcffault(ostream& out, t_struct* tstruct)
 {
     out << endl;
     out << indent() << "[DataContract]" << endl;
@@ -959,7 +959,7 @@ void t_netcore_generator::generate_netcore_wcffault(ofstream& out, t_struct* tst
     out << indent() << "}" << endl << endl;
 }
 
-void t_netcore_generator::generate_netcore_struct_reader(ofstream& out, t_struct* tstruct)
+void t_netcore_generator::generate_netcore_struct_reader(ostream& out, t_struct* tstruct)
 {
     out << indent() << "public async Task ReadAsync(TProtocol iprot, CancellationToken cancellationToken)" << endl
         << indent() << "{" << endl;
@@ -968,7 +968,7 @@ void t_netcore_generator::generate_netcore_struct_reader(ofstream& out, t_struct
         << indent() << "try" << endl
         << indent() << "{" << endl;
     indent_up();
-    
+
     const vector<t_field*>& fields = tstruct->get_members();
     vector<t_field*>::const_iterator f_iter;
 
@@ -981,7 +981,7 @@ void t_netcore_generator::generate_netcore_struct_reader(ofstream& out, t_struct
         }
     }
 
-    out << indent() << "TField field;" << endl 
+    out << indent() << "TField field;" << endl
         << indent() << "await iprot.ReadStructBeginAsync(cancellationToken);" << endl
         << indent() << "while (true)" << endl
         << indent() << "{" << endl;
@@ -996,7 +996,7 @@ void t_netcore_generator::generate_netcore_struct_reader(ofstream& out, t_struct
         << indent() << "switch (field.ID)" << endl
         << indent() << "{" << endl;
     indent_up();
-    
+
     for (f_iter = fields.begin(); f_iter != fields.end(); ++f_iter)
     {
         bool is_required = field_is_required(*f_iter);
@@ -1050,7 +1050,7 @@ void t_netcore_generator::generate_netcore_struct_reader(ofstream& out, t_struct
             out << indent() << "}" << endl;
         }
     }
-    
+
     indent_down();
     out << indent() << "}" << endl;
     out << indent() << "finally" << endl
@@ -1063,7 +1063,7 @@ void t_netcore_generator::generate_netcore_struct_reader(ofstream& out, t_struct
     out << indent() << "}" << endl << endl;
 }
 
-void t_netcore_generator::generate_netcore_struct_writer(ofstream& out, t_struct* tstruct)
+void t_netcore_generator::generate_netcore_struct_writer(ostream& out, t_struct* tstruct)
 {
     out << indent() << "public async Task WriteAsync(TProtocol oprot, CancellationToken cancellationToken)" << endl
         << indent() << "{" << endl;
@@ -1140,14 +1140,14 @@ void t_netcore_generator::generate_netcore_struct_writer(ofstream& out, t_struct
     out << indent() << "}" << endl << endl;
 }
 
-void t_netcore_generator::generate_netcore_struct_result_writer(ofstream& out, t_struct* tstruct)
+void t_netcore_generator::generate_netcore_struct_result_writer(ostream& out, t_struct* tstruct)
 {
     out << indent() << "public async Task WriteAsync(TProtocol oprot, CancellationToken cancellationToken)" << endl
         << indent() << "{" << endl;
     indent_up();
 
     out << indent() << "oprot.IncrementRecursionDepth();" << endl
-        << indent() << "try" << endl 
+        << indent() << "try" << endl
         << indent() << "{" << endl;
     indent_up();
 
@@ -1228,7 +1228,7 @@ void t_netcore_generator::generate_netcore_struct_result_writer(ofstream& out, t
     out << indent() << "}" << endl << endl;
 }
 
-void t_netcore_generator::generate_netcore_struct_tostring(ofstream& out, t_struct* tstruct)
+void t_netcore_generator::generate_netcore_struct_tostring(ostream& out, t_struct* tstruct)
 {
     out << indent() << "public override string ToString()" << endl
         << indent() << "{" << endl;
@@ -1324,7 +1324,7 @@ void t_netcore_generator::generate_netcore_union(t_struct* tunion)
     int ic = indent_count();
 
     string f_union_name = namespace_dir_ + "/" + (tunion->get_name()) + ".cs";
-    ofstream f_union;
+    ofstream_with_content_based_conditional_update f_union;
 
     f_union.open(f_union_name.c_str());
 
@@ -1333,11 +1333,11 @@ void t_netcore_generator::generate_netcore_union(t_struct* tunion)
     generate_netcore_union_definition(f_union, tunion);
 
     f_union.close();
-    
+
     indent_validate(ic, "generate_netcore_union.");
 }
 
-void t_netcore_generator::generate_netcore_union_definition(ofstream& out, t_struct* tunion)
+void t_netcore_generator::generate_netcore_union_definition(ostream& out, t_struct* tunion)
 {
     // Let's define the class first
     start_netcore_namespace(out);
@@ -1388,7 +1388,7 @@ void t_netcore_generator::generate_netcore_union_definition(ofstream& out, t_str
     end_netcore_namespace(out);
 }
 
-void t_netcore_generator::generate_netcore_union_class(ofstream& out, t_struct* tunion, t_field* tfield)
+void t_netcore_generator::generate_netcore_union_class(ostream& out, t_struct* tunion, t_field* tfield)
 {
     out << indent() << "public class " << tfield->get_name() << " : " << tunion->get_name() << endl
         << indent() << "{" << endl;
@@ -1438,7 +1438,7 @@ void t_netcore_generator::generate_netcore_union_class(ofstream& out, t_struct* 
     out << indent() << "}" << endl << endl;
 }
 
-void t_netcore_generator::generate_netcore_struct_equals(ofstream& out, t_struct* tstruct)
+void t_netcore_generator::generate_netcore_struct_equals(ostream& out, t_struct* tstruct)
 {
     out << indent() << "public override bool Equals(object that)" << endl
         << indent() << "{" << endl;
@@ -1500,7 +1500,7 @@ void t_netcore_generator::generate_netcore_struct_equals(ofstream& out, t_struct
     out << indent() << "}" << endl << endl;
 }
 
-void t_netcore_generator::generate_netcore_struct_hashcode(ofstream& out, t_struct* tstruct)
+void t_netcore_generator::generate_netcore_struct_hashcode(ostream& out, t_struct* tstruct)
 {
     out << indent() << "public override int GetHashCode() {" << endl;
     indent_up();
@@ -1552,7 +1552,7 @@ void t_netcore_generator::generate_service(t_service* tservice)
     int ic = indent_count();
 
     string f_service_name = namespace_dir_ + "/" + service_name_ + ".cs";
-    ofstream f_service;
+    ofstream_with_content_based_conditional_update f_service;
     f_service.open(f_service_name.c_str());
 
     f_service << autogen_comment() << netcore_type_usings() << netcore_thrift_usings() << endl;
@@ -1577,7 +1577,7 @@ void t_netcore_generator::generate_service(t_service* tservice)
     indent_validate(ic, "generate_service.");
 }
 
-void t_netcore_generator::generate_service_interface(ofstream& out, t_service* tservice)
+void t_netcore_generator::generate_service_interface(ostream& out, t_service* tservice)
 {
     string extends = "";
     string extends_iface = "";
@@ -1625,7 +1625,7 @@ void t_netcore_generator::generate_service_interface(ofstream& out, t_service* t
     out << indent() << "}" << endl << endl;
 }
 
-void t_netcore_generator::generate_service_helpers(ofstream& out, t_service* tservice)
+void t_netcore_generator::generate_service_helpers(ostream& out, t_service* tservice)
 {
     vector<t_function*> functions = tservice->get_functions();
     vector<t_function*>::iterator f_iter;
@@ -1638,7 +1638,7 @@ void t_netcore_generator::generate_service_helpers(ofstream& out, t_service* tse
     }
 }
 
-void t_netcore_generator::generate_service_client(ofstream& out, t_service* tservice)
+void t_netcore_generator::generate_service_client(ostream& out, t_service* tservice)
 {
     string extends = "";
     string extends_client = "";
@@ -1720,7 +1720,7 @@ void t_netcore_generator::generate_service_client(ofstream& out, t_service* tser
                 << indent() << "throw x;" << endl;
             indent_down();
 
-            out << indent() << "}" << endl 
+            out << indent() << "}" << endl
                 << endl
                 << indent() << "var result = new " << resultname << "();" << endl
                 << indent() << "await result.ReadAsync(InputProtocol, cancellationToken);" << endl
@@ -1741,7 +1741,7 @@ void t_netcore_generator::generate_service_client(ofstream& out, t_service* tser
                     }
                     else
                     {
-                        out << indent() << "if (result.Success.HasValue)" << endl 
+                        out << indent() << "if (result.Success.HasValue)" << endl
                             << indent() << "{" << endl;
                         indent_up();
                         out << indent() << "return result.Success.Value;" << endl;
@@ -1809,7 +1809,7 @@ void t_netcore_generator::generate_service_client(ofstream& out, t_service* tser
     out << indent() << "}" << endl << endl;
 }
 
-void t_netcore_generator::generate_service_server(ofstream& out, t_service* tservice)
+void t_netcore_generator::generate_service_server(ostream& out, t_service* tservice)
 {
     vector<t_function*> functions = tservice->get_functions();
     vector<t_function*>::iterator f_iter;
@@ -1827,7 +1827,7 @@ void t_netcore_generator::generate_service_server(ofstream& out, t_service* tser
 
     indent_up();
 
-    out << indent() << "private IAsync _iAsync;" << endl 
+    out << indent() << "private IAsync _iAsync;" << endl
         << endl
         << indent() << "public AsyncProcessor(IAsync iAsync)";
 
@@ -1839,7 +1839,7 @@ void t_netcore_generator::generate_service_server(ofstream& out, t_service* tser
     out << endl
         << indent() << "{" << endl;
     indent_up();
-    
+
     out << indent() << "if (iAsync == null) throw new ArgumentNullException(nameof(iAsync));" << endl
         << endl
         << indent() << "_iAsync = iAsync;" << endl;
@@ -1937,7 +1937,7 @@ void t_netcore_generator::generate_service_server(ofstream& out, t_service* tser
     out << indent() << "}" << endl << endl;
 }
 
-void t_netcore_generator::generate_function_helpers(ofstream& out, t_function* tfunction)
+void t_netcore_generator::generate_function_helpers(ostream& out, t_function* tfunction)
 {
     if (tfunction->is_oneway())
     {
@@ -1962,10 +1962,10 @@ void t_netcore_generator::generate_function_helpers(ofstream& out, t_function* t
     generate_netcore_struct_definition(out, &result, false, true, true);
 }
 
-void t_netcore_generator::generate_process_function_async(ofstream& out, t_service* tservice, t_function* tfunction)
+void t_netcore_generator::generate_process_function_async(ostream& out, t_service* tservice, t_function* tfunction)
 {
     (void)tservice;
-    out << indent() << "public async Task " << tfunction->get_name() 
+    out << indent() << "public async Task " << tfunction->get_name()
         << "_ProcessAsync(int seqid, TProtocol iprot, TProtocol oprot, CancellationToken cancellationToken)" << endl
         << indent() << "{" << endl;
     indent_up();
@@ -2029,7 +2029,7 @@ void t_netcore_generator::generate_process_function_async(ofstream& out, t_servi
     }
 
     cleanup_member_name_mapping(arg_struct);
-    
+
     if (!first)
     {
         out << ", ";
@@ -2044,7 +2044,7 @@ void t_netcore_generator::generate_process_function_async(ofstream& out, t_servi
     {
         indent_down();
         out << indent() << "}" << endl;
-        
+
         for (x_iter = xceptions.begin(); x_iter != xceptions.end(); ++x_iter)
         {
             out << indent() << "catch (" << type_name((*x_iter)->get_type(), false, false) << " " << (*x_iter)->get_name() << ")" << endl
@@ -2062,7 +2062,7 @@ void t_netcore_generator::generate_process_function_async(ofstream& out, t_servi
 
     if (!tfunction->is_oneway())
     {
-        out << indent() << "await oprot.WriteMessageBeginAsync(new TMessage(\"" 
+        out << indent() << "await oprot.WriteMessageBeginAsync(new TMessage(\""
                 << correct_function_name_for_async(tfunction->get_name()) << "\", TMessageType.Reply, seqid), cancellationToken); " << endl
             << indent() << "await result.WriteAsync(oprot, cancellationToken);" << endl;
     }
@@ -2104,7 +2104,7 @@ void t_netcore_generator::generate_process_function_async(ofstream& out, t_servi
     out << indent() << "}" << endl << endl;
 }
 
-void t_netcore_generator::generate_netcore_union_reader(ofstream& out, t_struct* tunion)
+void t_netcore_generator::generate_netcore_union_reader(ostream& out, t_struct* tunion)
 {
     // Thanks to THRIFT-1768, we don't need to check for required fields in the union
     const vector<t_field*>& fields = tunion->get_members();
@@ -2180,7 +2180,7 @@ void t_netcore_generator::generate_netcore_union_reader(ofstream& out, t_struct*
     out << indent() << "}" << endl << endl;
 }
 
-void t_netcore_generator::generate_deserialize_field(ofstream& out, t_field* tfield, string prefix, bool is_propertyless)
+void t_netcore_generator::generate_deserialize_field(ostream& out, t_field* tfield, string prefix, bool is_propertyless)
 {
     t_type* type = tfield->get_type();
     while (type->is_typedef())
@@ -2266,7 +2266,7 @@ void t_netcore_generator::generate_deserialize_field(ofstream& out, t_field* tfi
     }
 }
 
-void t_netcore_generator::generate_deserialize_struct(ofstream& out, t_struct* tstruct, string prefix)
+void t_netcore_generator::generate_deserialize_struct(ostream& out, t_struct* tstruct, string prefix)
 {
     if (union_ && tstruct->is_union())
     {
@@ -2274,12 +2274,12 @@ void t_netcore_generator::generate_deserialize_struct(ofstream& out, t_struct* t
     }
     else
     {
-        out << indent() << prefix << " = new " << type_name(tstruct) << "();" << endl 
+        out << indent() << prefix << " = new " << type_name(tstruct) << "();" << endl
             << indent() << "await " << prefix << ".ReadAsync(iprot, cancellationToken);" << endl;
     }
 }
 
-void t_netcore_generator::generate_deserialize_container(ofstream& out, t_type* ttype, string prefix)
+void t_netcore_generator::generate_deserialize_container(ostream& out, t_type* ttype, string prefix)
 {
     out << indent() << "{" << endl;
     indent_up();
@@ -2351,7 +2351,7 @@ void t_netcore_generator::generate_deserialize_container(ofstream& out, t_type* 
     out << indent() << "}" << endl;
 }
 
-void t_netcore_generator::generate_deserialize_map_element(ofstream& out, t_map* tmap, string prefix)
+void t_netcore_generator::generate_deserialize_map_element(ostream& out, t_map* tmap, string prefix)
 {
     string key = tmp("_key");
     string val = tmp("_val");
@@ -2368,7 +2368,7 @@ void t_netcore_generator::generate_deserialize_map_element(ofstream& out, t_map*
     out << indent() << prefix << "[" << key << "] = " << val << ";" << endl;
 }
 
-void t_netcore_generator::generate_deserialize_set_element(ofstream& out, t_set* tset, string prefix)
+void t_netcore_generator::generate_deserialize_set_element(ostream& out, t_set* tset, string prefix)
 {
     string elem = tmp("_elem");
     t_field felem(tset->get_elem_type(), elem);
@@ -2380,7 +2380,7 @@ void t_netcore_generator::generate_deserialize_set_element(ofstream& out, t_set*
     out << indent() << prefix << ".Add(" << elem << ");" << endl;
 }
 
-void t_netcore_generator::generate_deserialize_list_element(ofstream& out, t_list* tlist, string prefix)
+void t_netcore_generator::generate_deserialize_list_element(ostream& out, t_list* tlist, string prefix)
 {
     string elem = tmp("_elem");
     t_field felem(tlist->get_elem_type(), elem);
@@ -2392,7 +2392,7 @@ void t_netcore_generator::generate_deserialize_list_element(ofstream& out, t_lis
     out << indent() << prefix << ".Add(" << elem << ");" << endl;
 }
 
-void t_netcore_generator::generate_serialize_field(ofstream& out, t_field* tfield, string prefix, bool is_element, bool is_propertyless)
+void t_netcore_generator::generate_serialize_field(ostream& out, t_field* tfield, string prefix, bool is_element, bool is_propertyless)
 {
     t_type* type = tfield->get_type();
     while (type->is_typedef())
@@ -2473,13 +2473,13 @@ void t_netcore_generator::generate_serialize_field(ofstream& out, t_field* tfiel
     }
 }
 
-void t_netcore_generator::generate_serialize_struct(ofstream& out, t_struct* tstruct, string prefix)
+void t_netcore_generator::generate_serialize_struct(ostream& out, t_struct* tstruct, string prefix)
 {
     (void)tstruct;
     out << indent() << "await " << prefix << ".WriteAsync(oprot, cancellationToken);" << endl;
 }
 
-void t_netcore_generator::generate_serialize_container(ofstream& out, t_type* ttype, string prefix)
+void t_netcore_generator::generate_serialize_container(ostream& out, t_type* ttype, string prefix)
 {
     out << indent() << "{" << endl;
     indent_up();
@@ -2556,7 +2556,7 @@ void t_netcore_generator::generate_serialize_container(ofstream& out, t_type* tt
     out << indent() << "}" << endl;
 }
 
-void t_netcore_generator::generate_serialize_map_element(ofstream& out, t_map* tmap, string iter, string map)
+void t_netcore_generator::generate_serialize_map_element(ostream& out, t_map* tmap, string iter, string map)
 {
     t_field kfield(tmap->get_key_type(), iter);
     generate_serialize_field(out, &kfield, "", true);
@@ -2564,24 +2564,24 @@ void t_netcore_generator::generate_serialize_map_element(ofstream& out, t_map* t
     generate_serialize_field(out, &vfield, "", true);
 }
 
-void t_netcore_generator::generate_serialize_set_element(ofstream& out, t_set* tset, string iter)
+void t_netcore_generator::generate_serialize_set_element(ostream& out, t_set* tset, string iter)
 {
     t_field efield(tset->get_elem_type(), iter);
     generate_serialize_field(out, &efield, "", true);
 }
 
-void t_netcore_generator::generate_serialize_list_element(ofstream& out, t_list* tlist, string iter)
+void t_netcore_generator::generate_serialize_list_element(ostream& out, t_list* tlist, string iter)
 {
     t_field efield(tlist->get_elem_type(), iter);
     generate_serialize_field(out, &efield, "", true);
 }
 
-void t_netcore_generator::generate_property(ofstream& out, t_field* tfield, bool isPublic, bool generateIsset)
+void t_netcore_generator::generate_property(ostream& out, t_field* tfield, bool isPublic, bool generateIsset)
 {
     generate_netcore_property(out, tfield, isPublic, generateIsset, "_");
 }
 
-void t_netcore_generator::generate_netcore_property(ofstream& out, t_field* tfield, bool isPublic, bool generateIsset, string fieldPrefix)
+void t_netcore_generator::generate_netcore_property(ostream& out, t_field* tfield, bool isPublic, bool generateIsset, string fieldPrefix)
 {
     if ((serialize_ || wcf_) && isPublic)
     {
@@ -2866,7 +2866,7 @@ string t_netcore_generator::declare_field(t_field* tfield, bool init, string pre
         }
         if (ttype->is_base_type() && field_has_default(tfield))
         {
-            ofstream dummy;
+            std::ofstream dummy;
             result += " = " + render_const_value(dummy, tfield->get_name(), ttype, tfield->get_value());
         }
         else if (ttype->is_base_type())
@@ -3011,12 +3011,12 @@ string t_netcore_generator::type_to_enum(t_type* type)
     throw "INVALID TYPE IN type_to_enum: " + type->get_name();
 }
 
-void t_netcore_generator::generate_netcore_docstring_comment(ofstream& out, string contents)
+void t_netcore_generator::generate_netcore_docstring_comment(ostream& out, string contents)
 {
     docstring_comment(out, "/// <summary>" + endl, "/// ", contents, "/// </summary>" + endl);
 }
 
-void t_netcore_generator::generate_netcore_doc(ofstream& out, t_field* field)
+void t_netcore_generator::generate_netcore_doc(ostream& out, t_field* field)
 {
     if (field->get_type()->is_enum())
     {
@@ -3029,7 +3029,7 @@ void t_netcore_generator::generate_netcore_doc(ofstream& out, t_field* field)
     }
 }
 
-void t_netcore_generator::generate_netcore_doc(ofstream& out, t_doc* tdoc)
+void t_netcore_generator::generate_netcore_doc(ostream& out, t_doc* tdoc)
 {
     if (tdoc->has_doc())
     {
@@ -3037,7 +3037,7 @@ void t_netcore_generator::generate_netcore_doc(ofstream& out, t_doc* tdoc)
     }
 }
 
-void t_netcore_generator::generate_netcore_doc(ofstream& out, t_function* tfunction)
+void t_netcore_generator::generate_netcore_doc(ostream& out, t_function* tfunction)
 {
     if (tfunction->has_doc())
     {
@@ -3065,7 +3065,7 @@ void t_netcore_generator::generate_netcore_doc(ofstream& out, t_function* tfunct
     }
 }
 
-void t_netcore_generator::docstring_comment(ofstream& out, const string& comment_start, const string& line_prefix, const string& contents, const string& comment_end)
+void t_netcore_generator::docstring_comment(ostream& out, const string& comment_start, const string& line_prefix, const string& contents, const string& comment_end)
 {
     if (comment_start != "")
     {
@@ -3074,17 +3074,17 @@ void t_netcore_generator::docstring_comment(ofstream& out, const string& comment
 
     stringstream docs(contents, std::ios_base::in);
 
-    while (!(docs.eof() || docs.fail())) 
+    while (!(docs.eof() || docs.fail()))
     {
         char line[1024];
         docs.getline(line, 1024);
 
         // Just prnt a newline when the line & prefix are empty.
-        if (strlen(line) == 0 && line_prefix == "" && !docs.eof()) 
+        if (strlen(line) == 0 && line_prefix == "" && !docs.eof())
         {
             out << endl;
         }
-        else if (strlen(line) > 0 || !docs.eof()) 
+        else if (strlen(line) > 0 || !docs.eof())
         { // skip the empty last line
             out << indent() << line_prefix << line << endl;
         }

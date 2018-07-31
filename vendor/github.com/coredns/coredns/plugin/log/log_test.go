@@ -2,17 +2,20 @@ package log
 
 import (
 	"bytes"
+	"context"
 	"log"
 	"strings"
 	"testing"
 
 	"github.com/coredns/coredns/plugin/pkg/dnstest"
+	clog "github.com/coredns/coredns/plugin/pkg/log"
 	"github.com/coredns/coredns/plugin/pkg/response"
 	"github.com/coredns/coredns/plugin/test"
 
 	"github.com/miekg/dns"
-	"golang.org/x/net/context"
 )
+
+func init() { clog.Discard() }
 
 func TestLoggedStatus(t *testing.T) {
 	var f bytes.Buffer
@@ -20,6 +23,7 @@ func TestLoggedStatus(t *testing.T) {
 		NameScope: ".",
 		Format:    DefaultLogFormat,
 		Log:       log.New(&f, "", 0),
+		Class:     map[response.Class]bool{response.All: true},
 	}
 
 	logger := Logger{
@@ -50,7 +54,7 @@ func TestLoggedClassDenial(t *testing.T) {
 		NameScope: ".",
 		Format:    DefaultLogFormat,
 		Log:       log.New(&f, "", 0),
-		Class:     response.Denial,
+		Class:     map[response.Class]bool{response.Denial: true},
 	}
 
 	logger := Logger{
@@ -78,7 +82,7 @@ func TestLoggedClassError(t *testing.T) {
 		NameScope: ".",
 		Format:    DefaultLogFormat,
 		Log:       log.New(&f, "", 0),
-		Class:     response.Error,
+		Class:     map[response.Class]bool{response.Error: true},
 	}
 
 	logger := Logger{

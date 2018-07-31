@@ -3,8 +3,7 @@
 package test
 
 import (
-	"io/ioutil"
-	"log"
+	"context"
 	"testing"
 
 	"github.com/coredns/coredns/plugin/etcd/msg"
@@ -13,7 +12,6 @@ import (
 	"github.com/coredns/coredns/request"
 
 	"github.com/miekg/dns"
-	"golang.org/x/net/context"
 )
 
 // uses some stuff from etcd_tests.go
@@ -33,7 +31,6 @@ func TestEtcdCache(t *testing.T) {
 	defer ex.Stop()
 
 	etc := etcdPlugin()
-	log.SetOutput(ioutil.Discard)
 
 	var ctx = context.TODO()
 	for _, serv := range servicesCacheTest {

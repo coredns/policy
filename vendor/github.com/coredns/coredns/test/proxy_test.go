@@ -1,8 +1,6 @@
 package test
 
 import (
-	"io/ioutil"
-	"log"
 	"testing"
 
 	"github.com/coredns/coredns/plugin/proxy"
@@ -16,7 +14,7 @@ func TestLookupProxy(t *testing.T) {
 	t.Parallel()
 	name, rm, err := test.TempFile(".", exampleOrg)
 	if err != nil {
-		t.Fatalf("failed to create zone: %s", err)
+		t.Fatalf("Failed to create zone: %s", err)
 	}
 	defer rm()
 
@@ -30,8 +28,6 @@ func TestLookupProxy(t *testing.T) {
 		t.Fatalf("Could not get CoreDNS serving instance: %s", err)
 	}
 	defer i.Stop()
-
-	log.SetOutput(ioutil.Discard)
 
 	p := proxy.NewLookup([]string{udp})
 	state := request.Request{W: &test.ResponseWriter{}, Req: new(dns.Msg)}
@@ -55,7 +51,7 @@ func TestLookupDnsWithForcedTcp(t *testing.T) {
 	t.Parallel()
 	name, rm, err := test.TempFile(".", exampleOrg)
 	if err != nil {
-		t.Fatalf("failed to create zone: %s", err)
+		t.Fatalf("Failed to create zone: %s", err)
 	}
 	defer rm()
 
@@ -69,8 +65,6 @@ func TestLookupDnsWithForcedTcp(t *testing.T) {
 		t.Fatalf("Could not get CoreDNS serving instance: %s", err)
 	}
 	defer i.Stop()
-
-	log.SetOutput(ioutil.Discard)
 
 	p := proxy.NewLookupWithOption([]string{tcp}, proxy.Options{ForceTCP: true})
 	state := request.Request{W: &test.ResponseWriter{}, Req: new(dns.Msg)}
@@ -94,7 +88,7 @@ func BenchmarkProxyLookup(b *testing.B) {
 	t := new(testing.T)
 	name, rm, err := test.TempFile(".", exampleOrg)
 	if err != nil {
-		t.Fatalf("failed to created zone: %s", err)
+		t.Fatalf("Failed to created zone: %s", err)
 	}
 	defer rm()
 
@@ -105,16 +99,14 @@ func BenchmarkProxyLookup(b *testing.B) {
 
 	i, err := CoreDNSServer(corefile)
 	if err != nil {
-		t.Fatalf("could not get CoreDNS serving instance: %s", err)
+		t.Fatalf("Could not get CoreDNS serving instance: %s", err)
 	}
 
 	udp, _ := CoreDNSServerPorts(i, 0)
 	if udp == "" {
-		t.Fatalf("could not get udp listening port")
+		t.Fatalf("Could not get udp listening port")
 	}
 	defer i.Stop()
-
-	log.SetOutput(ioutil.Discard)
 
 	p := proxy.NewLookup([]string{udp})
 	state := request.Request{W: &test.ResponseWriter{}, Req: new(dns.Msg)}

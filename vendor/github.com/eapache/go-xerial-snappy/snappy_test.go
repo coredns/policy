@@ -47,3 +47,49 @@ func TestSnappyDecodeStreams(t *testing.T) {
 		}
 	}
 }
+
+func TestSnappyDecodeMalformedTruncatedHeader(t *testing.T) {
+	// Truncated headers should not cause a panic.
+	for i := 0; i < len(xerialHeader); i++ {
+		buf := make([]byte, i)
+		copy(buf, xerialHeader[:i])
+		if _, err := Decode(buf); err != ErrMalformed {
+			t.Errorf("expected ErrMalformed got %v", err)
+		}
+	}
+}
+
+func TestSnappyDecodeMalformedTruncatedSize(t *testing.T) {
+	// Inputs with valid Xerial header but truncated "size" field
+	sizes := []int{sizeOffset + 1, sizeOffset + 2, sizeOffset + 3}
+	for _, size := range sizes {
+		buf := make([]byte, size)
+		copy(buf, xerialHeader)
+		if _, err := Decode(buf); err != ErrMalformed {
+			t.Errorf("expected ErrMalformed got %v", err)
+		}
+	}
+}
+
+func TestSnappyDecodeMalformedBNoData(t *testing.T) {
+	// No data after the size field
+	buf := make([]byte, 20)
+	copy(buf, xerialHeader)
+	// indicate that there's one byte of data to be read
+	buf[len(buf)-1] = 1
+	if _, err := Decode(buf); err != ErrMalformed {
+		t.Errorf("expected ErrMalformed got %v", err)
+	}
+}
+
+func TestSnappyMasterDecodeFailed(t *testing.T) {
+	buf := make([]byte, 21)
+	copy(buf, xerialHeader)
+	// indicate that there's one byte of data to be read
+	buf[len(buf)-2] = 1
+	// A payload which will not decode
+	buf[len(buf)-1] = 1
+	if _, err := Decode(buf); err == ErrMalformed || err == nil {
+		t.Errorf("unexpected err: %v", err)
+	}
+}
