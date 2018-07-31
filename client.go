@@ -55,10 +55,11 @@ func (p *policyPlugin) connect() error {
 	}
 
 	if p.conf.policyFile != "" {
-		opts = append(opts, pep.WithPolicyFile(p.conf.policyFile), pep.WithContentFiles(p.conf.contentFiles))
+		p.pdp = newBuiltinClient(p.conf.policyFile, p.conf.contentFiles)
+	} else {
+		p.pdp = pep.NewClient(opts...)
 	}
 
-	p.pdp = pep.NewClient(opts...)
 	return p.pdp.Connect("")
 }
 
