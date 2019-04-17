@@ -6,7 +6,7 @@ import (
 	"strconv"
 	"testing"
 
-	"github.com/coredns/coredns/plugin/firewall/policy"
+	"github.com/coredns/policy/plugin/firewall/policy"
 	"github.com/coredns/coredns/plugin/test"
 	"github.com/coredns/coredns/request"
 

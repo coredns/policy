@@ -6,8 +6,8 @@ import (
 
 	"github.com/coredns/coredns/core/dnsserver"
 	"github.com/coredns/coredns/plugin"
-	"github.com/coredns/coredns/plugin/firewall/policy"
-	"github.com/coredns/coredns/plugin/firewall/rule"
+	"github.com/coredns/policy/plugin/firewall/policy"
+	"github.com/coredns/policy/plugin/firewall/rule"
 
 	"github.com/mholt/caddy"
 )
