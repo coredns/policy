@@ -110,17 +110,17 @@ NXDOMAIN all other queries.
 ~~~
 
 ### Custom Metadata Policy
-This example uses the *metadata* plugin to define labels `group_id` and `client_id` with values extracted from EDNS0. The firewall rules use those metadata to REFUSE any query without a group_id of `123456789` or client_id of `ABCDEF`.
+This example uses the *metadata_edns0* plugin to define labels `group_id` and `client_id` with values extracted from EDNS0. The firewall rules use those metadata to REFUSE any query without a group_id of `123456789` or client_id of `ABCDEF`.
 
 ~~~ corefile
 example.org {
-   metadata {
+   metadata_edns0 {
       group_id edns0 0xffed bytes
       client_id edns0 0xffee bytes
    }
    firewall query {
-      refuse [metadata/client_id] != 'ABCDEF'
-      refuse [metadata/group_id] != '123456789'
+      refuse [metadata_edns0/client_id] != 'ABCDEF'
+      refuse [metadata_edns0/group_id] != '123456789'
       block true
    }
 }
