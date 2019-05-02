@@ -7,7 +7,6 @@ import (
 	"github.com/coredns/policy/plugin/pkg/rqdata"
 	"github.com/miekg/dns"
 	"net"
-	"os"
 	"strings"
 	"testing"
 	"time"
@@ -117,7 +116,7 @@ type logGrabber struct {
 
 func newLogGrabber() *logGrabber {
 	b := new(bytes.Buffer)
-	log.SetOutput(b)
+	//log.SetOutput(b)
 
 	return &logGrabber{
 		b: b,
@@ -125,7 +124,7 @@ func newLogGrabber() *logGrabber {
 }
 
 func (g *logGrabber) Release() string {
-	log.SetOutput(os.Stderr)
+	//log.SetOutput(os.Stderr)
 
 	return g.b.String()
 }

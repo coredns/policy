@@ -66,7 +66,7 @@ func (p *ThemisEngine) BuildRule(args []string) (policy.Rule, error) {
 	return p, nil
 }
 
-func (p *ThemisEngine) Evaluate(data interface{}) (byte, error) {
+func (p *ThemisEngine) Evaluate(data interface{}) (int, error) {
 	ah := data.(*attrHolder)
 	var attrsRequest []pdp.AttributeAssignment
 	if !p.conf.autoResAttrs {
@@ -77,7 +77,7 @@ func (p *ThemisEngine) Evaluate(data interface{}) (byte, error) {
 	if err := p.validate(ah, attrsRequest); err != nil {
 		return dns.RcodeSuccess, err
 	}
-	return ah.action, nil
+	return int(ah.action), nil
 }
 
 type ThemisPlugin struct {

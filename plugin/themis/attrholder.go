@@ -114,7 +114,7 @@ func makeAssignmentByType(o *attrSetting, value string) (pdp.AttributeAssignment
 	case "string":
 		return pdp.MakeStringAssignment(o.name, value), true
 	}
-	panic(fmt.Errorf("unknown attribute type %d", o.attrType))
+	panic(fmt.Errorf("unknown attribute type %s", o.attrType))
 }
 
 func (ah *attrHolder) addDnRes(r *pdp.Response, custAttrs map[string]custAttr) {
