@@ -57,7 +57,7 @@ func (p *firewall) ServeDNS(ctx context.Context, w dns.ResponseWriter, r *dns.Ms
 
 	state := request.Request{W: w, Req: r}
 
-	// ask policy for the Query Rulelist
+	// evaluate query to determine action
 	action, err := p.query.Evaluate(ctx, state, queryData, p.engines)
 	if err != nil {
 		m := new(dns.Msg)
@@ -98,10 +98,9 @@ func (p *firewall) ServeDNS(ctx context.Context, w dns.ResponseWriter, r *dns.Ms
 	// Now apply the action evaluated by the RuleLists
 	switch action {
 	case policy.TypeAllow:
-		// the response from resolver, whatever it is, is good to go
-		r = respMsg
-		status = respMsg.Rcode
-
+		// the response from next plugin, whatever it is, is good to go
+		w.WriteMsg(respMsg)
+		return dns.RcodeSuccess, nil
 	case policy.TypeBlock:
 		// One of the RuleList ended evaluation with typeBlock : return the initial request with corresponding rcode
 		status = dns.RcodeNameError
@@ -117,7 +116,7 @@ func (p *firewall) ServeDNS(ctx context.Context, w dns.ResponseWriter, r *dns.Ms
 		errfw = errInvalidAction
 	}
 	m := new(dns.Msg)
-	m = m.SetRcode(r, status)
+	m.SetRcode(r, status)
 	if errfw == nil {
 		w.WriteMsg(m)
 	}
