@@ -33,9 +33,8 @@ Available actions:
   - `block` : interrupt the DNS resolution, reply with NXDOMAIN code
   - `drop` : interrupt the DNS resolution, do not reply (client will time out)
 
-* **EXPRESSION** defines the boolen expression for the rule.  Expression is a [go-like language](https://github.com/Knetic/govaluate/blob/master/MANUAL.md) where the variables are either the `metadata` of CoreDNS
-either a list of names associated with the DNS query/response information.
-Usual operators applies.
+* **EXPRESSION** defines the boolen expression for the rule.  Expression uses a [c-like expression format](https://github.com/Knetic/govaluate/blob/master/MANUAL.md)
+where the variables are either the `metadata` of CoreDNS or the fields of a DNS query/response.  Common operators apply.
 
   Examples:
   * `client_ip == '10.0.0.20'`
@@ -44,8 +43,8 @@ Usual operators applies.
   * `type IN ('AAAA', 'A') && name =~ 'google.com'`
   * `[mac/address] =~ '.*:FF:.*'`
 
-  NOTE: because of the `/` separator included in a label of metadata, those labels must be enclosed on 
-  bracket [...] for acorrect evaluation by the expression engine
+  NOTE: because of the `/` separator included in a label of metadata, those labels must be enclosed in
+  brackets `[...]`.
 
   The following names are supported for querying information
 
@@ -53,7 +52,7 @@ Usual operators applies.
   * `name`: name of the request (the domain requested)
   * `class`: class of the request (IN, CS, CH, ...)
   * `proto`: protocol used (tcp or udp)
-  * `remote`: client's IP address, for IPv6 addresses these are enclosed in brackets: `[::1]`
+  * `client_ip`: client's IP address, for IPv6 addresses these are enclosed in brackets: `[::1]`
   * `size`: request size in bytes
   * `port`: client's port
   * `duration`: response duration
@@ -79,6 +78,21 @@ Usual operators applies.
 * `make -f Makefile.release DOCKER=your-docker-repo docker-push`
 
 ## Examples
+
+### Client IP ACL
+This example shows how to use firewall to create a basic client IP based ACL. Here, '10.120.1.11' is expressly REFUSED.
+Other clients in `10.120.0.*` and `10.120.1.*` are allowed.  All other clients are not responded to.
+
+~~~ corefile
+. {
+   firewall query {
+      refuse client_ip =~ '10.120.1.11'
+      allow client_ip =~ '10.120.0.*'
+      allow client_ip =~ '10.120.1.*'
+      drop true
+   }
+}
+~~~
 
 ### Domain Name Policy
 Allow all queries for example.com.
