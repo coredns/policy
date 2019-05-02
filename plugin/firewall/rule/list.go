@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/coredns/policy/plugin/firewall/policy"
 	"github.com/coredns/coredns/request"
+	"github.com/coredns/policy/plugin/firewall/policy"
 )
 
 //Element is a structure that host a definition of policy Rule, and the Rule itself when created

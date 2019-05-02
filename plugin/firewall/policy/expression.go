@@ -6,8 +6,8 @@ import (
 	"strings"
 
 	"github.com/coredns/coredns/plugin/metadata"
-	"github.com/coredns/policy/plugin/pkg/rqdata"
 	"github.com/coredns/coredns/request"
+	"github.com/coredns/policy/plugin/pkg/rqdata"
 
 	expr "github.com/Knetic/govaluate"
 )
