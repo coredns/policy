@@ -69,6 +69,14 @@ The following names are supported for querying information
 * `server_port` : client's port
 * `response_ip` : the IP returned in the first A or AAAA record of the Answer section
 
+## External Plugin
+
+*Firewall* and other associated policy plugins in this repository are *external* plugins, which means it they are not included in CoreDNS releases.  To use the plugins in this repository, you'll need to build a CoreDNS image with the plugins you want to add included in the plugin list. In a nutshell you'll need to:
+* Clone https://github.com/coredns/coredns
+* Add this plugin to [plugin.cfg](https://github.com/coredns/coredns/blob/master/plugin.cfg) per instructions therein.
+* `make -f Makefile.release DOCKER=your-docker-repo release`
+* `make -f Makefile.release DOCKER=your-docker-repo docker`
+* `make -f Makefile.release DOCKER=your-docker-repo docker-push`
 
 ## Examples
 
