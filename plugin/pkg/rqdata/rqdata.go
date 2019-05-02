@@ -105,7 +105,9 @@ func NewMapping(emptyValue string) *Mapping {
 		">bufsize": func(state request.Request) string {
 			return strconv.Itoa(state.Size())
 		},
-
+		"client_ip": func(state request.Request) string {
+			return state.RemoteAddr()[0:strings.LastIndex(state.RemoteAddr(),":")]
+		},
 		"server_ip": func(state request.Request) string {
 			return addrToRFC3986(state.LocalIP())
 		},
