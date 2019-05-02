@@ -80,7 +80,7 @@ where the variables are either the `metadata` of CoreDNS or the fields of a DNS 
 ## Examples
 
 ### Client IP ACL
-This example shows how to use firewall to create a basic client IP based ACL. Here, '10.120.1.11' is expressly REFUSED.
+This example shows how to use *firewall* to create a basic client IP based ACL. Here `10.120.1.11` is expressly REFUSED.
 Other clients in `10.120.0.*` and `10.120.1.*` are allowed.  All other clients are not responded to.
 
 ~~~ corefile
@@ -109,7 +109,7 @@ NXDOMAIN all other queries.
 }
 ~~~
 
-### Custom Metadata Policy
+### EDNS0 Metadata Policy
 This example uses the *metadata_edns0* plugin to define labels `group_id` and `client_id` with values extracted from EDNS0. The firewall rules use those metadata to REFUSE any query without a group_id of `123456789` or client_id of `ABCDEF`.
 
 ~~~ corefile
