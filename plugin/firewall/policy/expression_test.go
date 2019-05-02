@@ -6,9 +6,9 @@ import (
 	"testing"
 
 	"github.com/coredns/coredns/plugin/pkg/dnstest"
-	"github.com/coredns/policy/plugin/pkg/rqdata"
 	tst "github.com/coredns/coredns/plugin/test"
 	"github.com/coredns/coredns/request"
+	"github.com/coredns/policy/plugin/pkg/rqdata"
 
 	"github.com/miekg/dns"
 )
