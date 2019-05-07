@@ -1,0 +1,13 @@
+{
+  "id": "actions",
+  "items": {
+    "domain-actions": {
+      "keys": ["domain"],
+      "type": "string",
+      "data": {
+        "google.com": "PermitAction",
+        "yahoo.com": "DenyAction"
+      }
+    }
+  }
+}
