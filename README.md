@@ -81,14 +81,14 @@ where the variables are either the `metadata` of CoreDNS or the fields of a DNS 
 
 ### Client IP ACL
 This example shows how to use *firewall* to create a basic client IP based ACL. Here `10.120.1.11` is expressly REFUSED.
-Other clients in `10.120.0.*` and `10.120.1.*` are allowed.  All other clients are not responded to.
+Other clients in `10.120.0.0/24` and `10.120.1.0/24` are allowed.  All other clients are not responded to.
 
 ~~~ corefile
 . {
    firewall query {
-      refuse client_ip =~ '10.120.1.11'
-      allow client_ip =~ '10.120.0.*'
-      allow client_ip =~ '10.120.1.*'
+      refuse client_ip == '10.120.1.11'
+      allow client_ip =~ '10\.120\.0\..*'
+      allow client_ip =~ '10\.120\.1\..*'
       drop true
    }
 }
