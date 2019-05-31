@@ -1,65 +1,96 @@
-# coredns-themis
-Plugin Themis to embed the policy engine into Firewall plugin
+# themis
+
+*themis* - implements Infoblox's Themis policy engine as CoreDNS _firewall_ policy engine.
 
 ## Syntax
 
-~~~ txt
-policy {
-    endpoint ADDR_1, ADDR_2, ... ADDR_N
+```
+themis ENGINE-NAME {
+    pdp POLICY-FILE CONTENT [CONTENT...]
+    endpoint PDP [PDP...]
     attr NAME LABEL [DSTTYPE]
-    ...
     debug_query_suffix SUFFIX
     debug_id ID
-    streams COUNT
-    transfer ATTR_1, ATTR_2, ... ATTR_N
+    metrics ATTR [ATTR...]
+    streams COUNT [BALANCE]
+    connection_timeout
+    transfer ATTR [ATTR...]
     log
     max_request_size [[auto] SIZE]
     max_response_attributes auto | COUNT
     cache [TTL [SIZE]]
 }
-~~~
+```
 
-Option endpoint defines set of PDP addresses
+* **ENGINE-NAME** is the name of the policy engine, used by the firewall plugin to uniquely identify the instance.
+  Each instance of _themis_ in the Corefile must have a unique **ENGINE-NAME**.
 
-Option attr is used for assigning labels into PDP attributes.
+* `pdp` defines themis policy and content files for local policy evaluation **TODO: poorly named. rename this option**
 
-Valid SRCTYPE are hex (default), bytes, ip.
+* `endpoint` defines a list themis **PDP** addresses for remote policy evaluation
 
-Valid DSTTYPE depends on Themis PDP implementation, ATM is supported string (default), address.
+* `attr` is used for assigning labels into PDP attributes. `attr` may be defined multiple times.
 
-Params SIZE, START, END is supported only for SRCTYPE = hex.
+  * **SRCTYPE** can be `hex` (default), `bytes`, `ip`. 
+    **SIZE**, **START**, **END** are supported only for **SRCTYPE** = `hex`. 
+    Setting  **SIZE** > 0 enables edns0 option data size check.
+    Use **START** and **END** (last data byte index + 1) to get a part of edns0 option data.
+    **TODO: SRCTYPE and all parameters are missing from Syntax above**
+  * **DSTTYPE** allowed values depends on Themis PDP implementation, e.g. string (default), address.
 
-Set param SIZE to value > 0 enables edns0 option data size check.
+* `debug_query_suffix` enables debug query feature. **SUFFIX** must end with a dot. 
 
-Param START and END (last data byte index + 1) allow to get separate part of edns0 option data.
+* `debug_id` is used to assist debugging. **ID** is a unique id that can be used to help determine
+  which CoreDNS instance created a response.
 
-Option debug_query_suffix SUFFIX (should have dot at the end) enables debug query feature.
+* `metrics`
 
-Option debug_id set string that is used for debug query response as unique id for determine what CoreDNS instance replies on the request.
+* `streams` **COUNT** sets the number of gRPC streams for PDP connections.
+  **BALANCE** can be `round-robin` (default), or `hot-spot`.
 
-Option streams set gRPC streams count for PDP connection.
+* `transfer` defines the set of attributes from domain validation response tha
+  should be inserted into IP validation request.
 
-Option transfer defines set of attributes (from domain validation response) that should be inserted into IP validation request.
+* `dnstap` defines attributes to be included in the extra field of DNStap message if received
+  from the PDP. **TODO: MISSING FROM SYNTAX**
 
-Option dnstap defines attributes to be included in extra field of DNStap message if received from PDP.
+* `passthrough` defines set of domain name suffixes that will bypass policy validation. 
+  Each suffix should have dot at the end. **TODO: MISSING FROM SYNTAX**
 
-Option passthrough defines set of domain name suffixes, domain that contains one of these is resolved without validation, each suffix should have dot at the end.
+* `connection_timeout` sets the timeout for query validation when no PDP servers are available.
+  A negative value or `no` means wait forever, the default behavior. A timeout of `0` causes
+  validation to fail instantly if there are no PDP servers. The option works only if gRPC streams are
+  greater than 0. **TODO: MISSING FROM SYNTAX**
 
-Option connection_timeout sets timeout for query validation when no PDP server are available. Negative value or "no" keyword means wait forever. This is default behavior. With zero timeout validation fails instantly if there is no PDP servers. The option works only if gRPC streams are greater than 0.
+* `log` enables logging of the PDP request and response
 
-Option log enables log PDP request and response
+* `max_request_size` sets maximum buffer size in bytes for serialized request. Setting the limit
+  too high will make the plugin to allocate too much memory. Setting the limit too small can lead
+  to buffer overflow errors during validation. If `auto` is set, the plugin allocates the required
+  amount of bytes for each request. If both `auto` and **SIZE** are set, **SIZE** is only used for
+  cache allocations and not for limiting the request buffer. 
 
-Option max_request_size sets maximum buffer size in bytes for serialized request. Too high limit makes the plugin to allocate too much memory while too small can lead to buffer overflow errors on validation. If "auto" is set plugin allocates required amount of bytes for each request. In case of both "auto" and SIZE, SIZE doesn't limit request buffer but used for cache allocations. 
+* `max_response_attributes` sets the maximum number of attributes expected from the PDP. If the value
+  is `auto`, the plugin automatically allocates the necessary number of attributes for each PDP response.
 
-Option max_response_attributes sets maximum number of attributes expected from PDP. If value is "auto" plugin allocates necessary attribuets for each PDP response.
+* `cache` enables decision cache. **TTL** default value is 10 minutes. **SIZE** limits the memory cache 
+  will use to given number of megabytes. If **SIZE** isn't provided cache can grow indeterminately.
 
-Option cache enables decision cache. TTL default value is 10 minutes. SIZE limits memory cache takes to given number of megabytes. If it isn't provided cache can grow until application crashes due to out of memory.
+## Firewall Policy Engine
 
-## Example
+This plugin is not a standalone plugin.  It must be used in conjunction with the _firewall_ plugin to function.
+For this plugin to be active, the _firewall_ plugin must reference it in a rule.  See the "Policy Engine Plugins"
+section of the _firewall_ plugin README for more information.
+
+## Examples
+
+In the Corefile below, edns0 options with code 0xffee is split into two values - client_id (first 16 bytes)
+and group_id (last 16 bytes). Edns0 options less than 32 bytes in size will not assign a client_id or group_id.
 
 ~~~ txt
-policy {
-    endpoint 10.0.0.7:1234, 10.0.0.8:1234
+. {
+  themis myengine {
+    endpoint 10.0.0.7:1234 10.0.0.8:1234
     attr client_id request/client_id
     attr group_id request/group_id
     attr uid request/another_id
@@ -70,12 +101,11 @@ policy {
     streams 100
     transfer gid uid
     log
+  }
+
+  firewall query {
+    themis myengine
+  }
 }
 ~~~
 
-In this case edns0 options with code 0xffee is splitted into two values - client_id (first 16 bytes) and group_id (last 16 bytes), option should have size 32 bytes otherwise client_id and group_id is not parsed.
-
-Dig command example for debug query:
-~~~ txt
-dig @127.0.0.1 msn.com.debug txt ch
-~~~

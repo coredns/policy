@@ -6,21 +6,22 @@
 
 ## Description
 
-The firewall plugin defines a rule list of expressions that trigger workflow action on the DNS query or its response.
+The firewall plugin defines a list of rules that trigger workflow action on the DNS query or its response.
 A rule list is an ordered set of rules that are evaluated in sequence.
-Each rule has two parts: an action and an expression. When the rule is evaluated,
+Rules can be an expression rule, or a policy engine rule. 
+An expression rule has two parts: an action and an expression. When the rule is evaluated,
 first the expression is evaluated.
 - If the expression evaluates to `true` the action is performed on the query and the rule list evaluation ceases.
 - If the expression does not evaluates to `true` then next rule in sequence is evaluated.
 
+The firewall plugin can also refer to other policy engines to determine the action to take.
 
 ## Syntax
 
 ~~~ txt
 firewall DIRECTION {
     ACTION EXPRESSION
-    ACTION EXPRESSION
-    ...
+    POLICY-PLUGIN ENGINE-NAME
 }
 ~~~~
 
@@ -33,10 +34,11 @@ Available actions:
   - `block` : interrupt the DNS resolution, reply with NXDOMAIN code
   - `drop` : interrupt the DNS resolution, do not reply (client will time out)
 
-* **EXPRESSION** defines the boolen expression for the rule.  Expression uses a [c-like expression format](https://github.com/Knetic/govaluate/blob/master/MANUAL.md)
-where the variables are either the `metadata` of CoreDNS or the fields of a DNS query/response.  Common operators apply.
+  An action must be followed by an **EXPRESSION**, which defines the boolean expression for the rule.  Expression uses 
+  a [c-like expression format](https://github.com/Knetic/govaluate/blob/master/MANUAL.md) where the variables are either
+  the `metadata` of CoreDNS or the fields of a DNS query/response.  Common operators apply.
 
-  Examples:
+  Expression Examples:
   * `client_ip == '10.0.0.20'`
   * `type == 'AAAA'`
   * `type IN ('AAAA', 'A', 'TXT')`
@@ -46,7 +48,7 @@ where the variables are either the `metadata` of CoreDNS or the fields of a DNS 
   NOTE: because of the `/` separator included in a label of metadata, those labels must be enclosed in
   brackets `[...]`.
 
-  The following names are supported for querying information
+  The following names are supported for querying information in expressions
 
   * `type`: type of the request (A, AAAA, TXT, ..)
   * `name`: name of the request (the domain requested)
@@ -68,10 +70,25 @@ where the variables are either the `metadata` of CoreDNS or the fields of a DNS 
   * `server_port` : client's port
   * `response_ip` : the IP returned in the first A or AAAA record of the Answer section
 
+* **POLICY-PLUGIN** : is the name of another plugin that implements a firewall policy engine. 
+  **ENGINE-NAME** is the name of an engine defined in your Corefile. Requests/responses will be evaluated by
+  that plugin policy engine to determine the action.
+
+## Policy Engine Plugins
+
+In addition to using the built-in action/expression syntax, the _firewall_ plugin can use a policy engine plugin
+to evaluate policy.
+
+To use a policy engine plugin, you'll need to compile plugin into CoreDNS, the declare the plugin in in your
+Corefile, and reference the plugin as an action of a firewall rule.  See the "Using a Policy Engine Plugin" example below.
+
+When authoring a new policy engine plugin, the plugin must implement the `Engineer` interface defined in firewall/policy.
+
 ## External Plugin
 
-*Firewall* and other associated policy plugins in this repository are *external* plugins, which means it they are not included in CoreDNS releases.  To use the plugins in this repository, you'll need to build a CoreDNS image with the plugins you want to add included in the plugin list. In a nutshell you'll need to:
-* Clone https://github.com/coredns/coredns
+*Firewall* and other associated policy plugins in this repository are *external* plugins, which means it they are not included in CoreDNS releases.
+To use the plugins in this repository, you'll need to build a CoreDNS image with the plugins you want to add included in the plugin list. In a nutshell you'll need to:
+* Clone <https://github.com/coredns/coredns>
 * Add this plugin to [plugin.cfg](https://github.com/coredns/coredns/blob/master/plugin.cfg) per instructions therein.
 * `make -f Makefile.release DOCKER=your-docker-repo release`
 * `make -f Makefile.release DOCKER=your-docker-repo docker`
@@ -110,7 +127,8 @@ NXDOMAIN all other queries.
 ~~~
 
 ### EDNS0 Metadata Policy
-This example uses the *metadata_edns0* plugin to define labels `group_id` and `client_id` with values extracted from EDNS0. The firewall rules use those metadata to REFUSE any query without a group_id of `123456789` or client_id of `ABCDEF`.
+This example uses the *metadata_edns0* plugin to define labels `group_id` and `client_id` with values extracted from EDNS0.
+The firewall rules use those metadata to REFUSE any query without a group_id of `123456789` or client_id of `ABCDEF`.
 
 ~~~ corefile
 example.org {
@@ -126,3 +144,19 @@ example.org {
 }
 ~~~
 
+### Using a Policy Engine Plugin
+
+The following example illustrates how the a policy engine plugin (*themis* in this example) can be used by the *firewall* plugin.
+Note that the *themis* plugin options are not defined here, and are replaced by `...`.
+
+~~~
+. {
+  firewall query {
+    themis myengine
+  }
+   
+  themis myengine {
+    ...
+  }
+}
+~~~

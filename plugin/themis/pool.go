@@ -1,4 +1,4 @@
-package themisplugin
+package themis
 
 import (
 	"sync"

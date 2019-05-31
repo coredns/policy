@@ -1,11 +1,11 @@
-package themisplugin
+package themis
 
 import (
+	"github.com/coredns/policy/plugin/themis/client"
 	"log"
 	"sync/atomic"
 
 	//"github.com/coredns/coredns/plugin/pkg/trace"
-	"github.com/infobloxopen/coredns-themis/client"
 	"github.com/infobloxopen/themis/pdp"
 	"github.com/infobloxopen/themis/pep"
 )

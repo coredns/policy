@@ -1,4 +1,4 @@
-package themisplugin
+package themis
 
 import (
 	"github.com/coredns/coredns/core/dnsserver"

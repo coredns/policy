@@ -117,7 +117,7 @@ func (p *firewall) parseOptionOrRule(c *caddy.Controller) (*rule.Element, error)
 		plugin := c.Val()
 		args := c.RemainingArgs()
 		if len(args) < 1 {
-			return nil, fmt.Errorf("not enough arguments to build a policy rule, expect %s <name-engine>", c.Val())
+			return nil, fmt.Errorf("not enough arguments to build a policy rule, expect %s <engine-name>", c.Val())
 		}
 		name := args[0]
 		params := args[1:]
