@@ -11,7 +11,7 @@ themis ENGINE-NAME {
     attr NAME LABEL [DSTTYPE]
     debug_query_suffix SUFFIX
     debug_id ID
-    metrics ATTR [ATTR...]
+    metrics METRIC [METRIC...]
     streams COUNT [BALANCE]
     connection_timeout
     transfer ATTR [ATTR...]
@@ -28,25 +28,19 @@ themis ENGINE-NAME {
 * **ENGINE-NAME** is the name of the policy engine, used by the firewall plugin to uniquely identify the instance.
   Each instance of _themis_ in the Corefile must have a unique **ENGINE-NAME**.
 
-* `pdp` defines themis policy and content files for local policy evaluation **TODO: poorly named. rename this option**
+* `pdp` defines themis policy and content files for local policy evaluation
 
 * `endpoint` defines a list themis **PDP** addresses for remote policy evaluation
 
 * `attr` is used for assigning labels into PDP attributes. `attr` may be defined multiple times.
-
-  * **SRCTYPE** can be `hex` (default), `bytes`, `ip`. 
-    **SIZE**, **START**, **END** are supported only for **SRCTYPE** = `hex`. 
-    Setting  **SIZE** > 0 enables edns0 option data size check.
-    Use **START** and **END** (last data byte index + 1) to get a part of edns0 option data.
-    **TODO: SRCTYPE and all parameters are missing from Syntax above**
-  * **DSTTYPE** allowed values depends on Themis PDP implementation, e.g. string (default), address.
+  **DSTTYPE** allowed values depends on Themis PDP implementation, e.g. string (default), domain, address.
 
 * `debug_query_suffix` enables debug query feature. **SUFFIX** must end with a dot. 
 
 * `debug_id` is used to assist debugging. **ID** is a unique id that can be used to help determine
   which CoreDNS instance created a response.
 
-* `metrics`
+* `metrics` defines a list of prometheus metrics to report.
 
 * `streams` **COUNT** sets the number of gRPC streams for PDP connections.
   **BALANCE** can be `round-robin` (default), or `hot-spot`.

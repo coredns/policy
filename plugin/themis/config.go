@@ -131,8 +131,6 @@ func (conf *config) parseEndpoint(c *caddy.Controller) error {
 
 func (conf *config) parseAttr(c *caddy.Controller) error {
 	args := c.RemainingArgs()
-	// Usage: edns0 <code> <name> [ <dataType> ] [ <size> <start> <end> ].
-	// Valid dataTypes are hex (default), bytes, ip.
 	// Valid destTypes depend on PDP (default string).
 	argsLen := len(args)
 	if argsLen != 2 && argsLen != 3 {
