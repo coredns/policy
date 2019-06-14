@@ -8,9 +8,9 @@ import (
 	"strconv"
 	"testing"
 
+	"github.com/coredns/coredns/request"
 	"github.com/infobloxopen/go-trees/domain"
 	"github.com/miekg/dns"
-	"github.com/coredns/coredns/request"
 
 	"context"
 
@@ -49,7 +49,7 @@ func buildState(name string, qtype uint16, clientIp string) request.Request {
 	//create a msg
 	req := new(dns.Msg)
 	req.SetQuestion(name, qtype)
-	return request.Request{Req:req, W:&fakeWriter{clientIP:clientIp}}
+	return request.Request{Req: req, W: &fakeWriter{clientIP: clientIp}}
 }
 
 func TestNewAttrHolderWithDnReq(t *testing.T) {
@@ -63,9 +63,9 @@ func TestNewAttrHolderWithDnReq(t *testing.T) {
 	mapping := rqdata.NewMapping("")
 	state := buildState("example.com.", dns.TypeA, "192.0.2.1")
 	mdata := map[string]string{
-		"request/low":                  "0001020304050607",
-		"request/high":                 "08090a0b0c0d0e0f",
-		"request/byte":                 "test",
+		"request/low":  "0001020304050607",
+		"request/high": "08090a0b0c0d0e0f",
+		"request/byte": "test",
 	}
 
 	ctx := buildContext(context.TODO(), mdata)
@@ -103,7 +103,7 @@ func TestAddIpReq(t *testing.T) {
 		"trans": custAttrTransfer,
 	}
 
-	ah := newAttrHolderWithContext(ctx, rqdata.NewExtractor(state, mapping),optsMap, nil)
+	ah := newAttrHolderWithContext(ctx, rqdata.NewExtractor(state, mapping), optsMap, nil)
 	pdp.AssertAttributeAssignments(t, "newAttrHolderWithDnReq - dnReq", ah.dnReq,
 		pdp.MakeStringAssignment(attrNameType, typeValueQuery),
 		pdp.MakeDomainAssignment(attrNameDomainName, makeTestDomain(dns.Fqdn("example.com"))),
@@ -171,6 +171,7 @@ func TestActionDomainResponse(t *testing.T) {
 		//	action: firewall.TypeRedirect,
 		//	dst:    "192.0.2.1",
 		//},
+		/* attrNameRedirectTo is not currently implemented AFAICT
 		{
 			res: &pdp.Response{
 				Effect: pdp.EffectDeny,
@@ -180,6 +181,7 @@ func TestActionDomainResponse(t *testing.T) {
 			},
 			action: policy.TypeNone,
 		},
+		*/
 		{
 			res: &pdp.Response{
 				Effect: pdp.EffectDeny,
@@ -343,7 +345,7 @@ func TestActionIpResponse(t *testing.T) {
 
 func TestAddResponse(t *testing.T) {
 	mdata := map[string]string{
-		"request/edns1":                "edns1Val",
+		"request/edns1": "edns1Val",
 	}
 	mapping := rqdata.NewMapping("")
 	state := buildState("example.com.", dns.TypeA, "192.0.2.1")
@@ -633,7 +635,7 @@ func TestAddResponse(t *testing.T) {
 					optMap = test.opts
 				}
 				ctx := buildContext(context.TODO(), mdata)
-				ah := newAttrHolderWithContext(ctx, rqdata.NewExtractor(state, mapping),optMap, nil)
+				ah := newAttrHolderWithContext(ctx, rqdata.NewExtractor(state, mapping), optMap, nil)
 
 				ah.addDnRes(test.resp, custAttrs)
 
@@ -667,7 +669,7 @@ func TestAddResponse(t *testing.T) {
 					optMap = test.opts
 				}
 				ctx := buildContext(context.TODO(), mdata)
-				ah := newAttrHolderWithContext(ctx, rqdata.NewExtractor(state, mapping),optMap, nil)
+				ah := newAttrHolderWithContext(ctx, rqdata.NewExtractor(state, mapping), optMap, nil)
 				ah.addIPRes(test.resp)
 
 				pdp.AssertAttributeAssignments(t,
@@ -699,18 +701,13 @@ func TestAddResponse(t *testing.T) {
 
 func TestMakeDnstapReport(t *testing.T) {
 
-	mdata := map[string]string{
-		"request/edns1":                "edns1Val",
-	}
+	mdata := map[string]string{}
 	mapping := rqdata.NewMapping("")
 	state := buildState("example.com.", dns.TypeA, "192.0.2.1")
 
-	optsMap := []*attrSetting{
-		{"edns", "request/edns", "String", false},
-	}
+	optsMap := []*attrSetting{}
 
 	custAttrs := map[string]custAttr{
-		"edns":   custAttrEdns,
 		"trans":  custAttrTransfer,
 		"dnstap": custAttrDnstap,
 	}
@@ -722,7 +719,6 @@ func TestMakeDnstapReport(t *testing.T) {
 		pdp.MakeDomainAssignment(attrNameDomainName, makeTestDomain(dns.Fqdn("example.com"))),
 		pdp.MakeStringAssignment(attrNameDNSQtype, strconv.FormatUint(uint64(dns.TypeA), 16)),
 		pdp.MakeAddressAssignment(attrNameSourceIP, net.ParseIP("192.0.2.1")),
-		pdp.MakeStringAssignment("edns", "ednsVal"),
 	)
 	pdp.AssertAttributeAssignments(t, "newAttrHolderWithDnReq - dnRes", ah.dnRes)
 
