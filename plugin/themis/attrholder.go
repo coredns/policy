@@ -55,13 +55,13 @@ func newAttrHolderWithContext(ctx context.Context, xtr *rq.Extractor, optMap []*
 
 	hdrCount := ednsAttrsStart
 	qName, _ := xtr.Value("name")
-	qType, _ := xtr.Value("qtype")
+	qType, _ := xtr.Value("type")
 	dn, err := domain.MakeNameFromString(qName)
 	if err != nil {
 		panic(fmt.Errorf("Can't treat %q as domain name: %s", qName, err))
 	}
 
-	clientIP, _ := xtr.Value("remote")
+	clientIP, _ := xtr.Value("client_ip")
 	var srcIP = net.IP(nil)
 	if clientIP != "" {
 		srcIP = net.ParseIP(clientIP)

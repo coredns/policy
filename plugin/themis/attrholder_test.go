@@ -25,20 +25,20 @@ type fakeWriter struct {
 }
 
 func (w *fakeWriter) LocalAddr() net.Addr {
-	local := net.ParseIP(w.clientIP)
-	return &net.UDPAddr{IP: local, Port: 53} // Port is not used here
+	ip := net.ParseIP(w.serverIP)
+	return &net.UDPAddr{IP: ip, Port: 0} // Port is not used here
 }
 
 func (w *fakeWriter) RemoteAddr() net.Addr {
-	remote := net.ParseIP(w.serverIP)
-	return &net.UDPAddr{IP: remote, Port: 53} // Port is not used here
+	ip := net.ParseIP(w.clientIP)
+	return &net.UDPAddr{IP: ip, Port: 0} // Port is not used here
 }
 
 func buildFunc(v string) metadata.Func {
 	return func() string { return v }
 }
 func buildContext(ctx context.Context, data map[string]string) context.Context {
-//	ctx = metadata.ForMetadata(ctx)
+	ctx = metadata.ContextWithMetadata(ctx)
 	for k, v := range data {
 		metadata.SetValueFunc(ctx, k, buildFunc(v))
 	}
@@ -57,50 +57,28 @@ func TestNewAttrHolderWithDnReq(t *testing.T) {
 		{"low", "request/low", "String", false},
 		{"high", "request/high", "String", false},
 		{"byte", "request/byte", "String", false},
-		{attrNameSourceIP, "request/source_ip", "Address", false},
+		{attrNameSourceIP, "client_ip", "Address", false},
 	}
 
 	mapping := rqdata.NewMapping("")
 	state := buildState("example.com.", dns.TypeA, "192.0.2.1")
 	mdata := map[string]string{
-		"request/source_ip":            "2001:db8::1",
 		"request/low":                  "0001020304050607",
 		"request/high":                 "08090a0b0c0d0e0f",
 		"request/byte":                 "test",
 	}
 
-	ctx := context.TODO()
-	ctx = buildContext(ctx, mdata)
+	ctx := buildContext(context.TODO(), mdata)
 
 	ah := newAttrHolderWithContext(ctx, rqdata.NewExtractor(state, mapping), optsMap, nil)
 	pdp.AssertAttributeAssignments(t, "newAttrHolderWithDnReq", ah.dnReq,
 		pdp.MakeStringAssignment(attrNameType, typeValueQuery),
 		pdp.MakeDomainAssignment(attrNameDomainName, makeTestDomain(dns.Fqdn("example.com"))),
 		pdp.MakeStringAssignment(attrNameDNSQtype, strconv.FormatUint(uint64(dns.TypeA), 16)),
-		pdp.MakeAddressAssignment(attrNameSourceIP, net.ParseIP("2001:db8::1")),
+		pdp.MakeAddressAssignment(attrNameSourceIP, net.ParseIP("192.0.2.1")),
 		pdp.MakeStringAssignment("low", "0001020304050607"),
 		pdp.MakeStringAssignment("high", "08090a0b0c0d0e0f"),
 		pdp.MakeStringAssignment("byte", "test"),
-	)
-
-	state = buildState("example.com.", dns.TypeA, "example.com:53")
-	mdata = map[string]string{
-		"request/source_ip":            "2001:db8::1",
-		"request/low":                  "0001020304050607",
-		"request/high":                 "08090a0b0c0d0e0f",
-		"request/byte":                 "test",
-	}
-
-	ctx = buildContext(context.TODO(), mdata)
-	ah = newAttrHolderWithContext(ctx, rqdata.NewExtractor(state, mapping), optsMap, nil)
-	pdp.AssertAttributeAssignments(t, "newAttrHolderWithDnReq(notIPRemoteAddr)", ah.dnReq,
-		pdp.MakeStringAssignment(attrNameType, typeValueQuery),
-		pdp.MakeDomainAssignment(attrNameDomainName, makeTestDomain(dns.Fqdn("example.com"))),
-		pdp.MakeStringAssignment(attrNameDNSQtype, strconv.FormatUint(uint64(dns.TypeA), 16)),
-		pdp.MakeStringAssignment("low", "0001020304050607"),
-		pdp.MakeStringAssignment("high", "08090a0b0c0d0e0f"),
-		pdp.MakeStringAssignment("byte", "test"),
-		pdp.MakeAddressAssignment(attrNameSourceIP, net.ParseIP("2001:db8::1")),
 	)
 
 	state = buildState("...", dns.TypeA, "example.com:53")

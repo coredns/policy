@@ -15,6 +15,9 @@ themis ENGINE-NAME {
     streams COUNT [BALANCE]
     connection_timeout
     transfer ATTR [ATTR...]
+    dnstap
+    passthrough
+    connection_timeout
     log
     max_request_size [[auto] SIZE]
     max_response_attributes auto | COUNT
@@ -52,15 +55,15 @@ themis ENGINE-NAME {
   should be inserted into IP validation request.
 
 * `dnstap` defines attributes to be included in the extra field of DNStap message if received
-  from the PDP. **TODO: MISSING FROM SYNTAX**
+  from the PDP.
 
 * `passthrough` defines set of domain name suffixes that will bypass policy validation. 
-  Each suffix should have dot at the end. **TODO: MISSING FROM SYNTAX**
+  Each suffix should have dot at the end.
 
 * `connection_timeout` sets the timeout for query validation when no PDP servers are available.
   A negative value or `no` means wait forever, the default behavior. A timeout of `0` causes
   validation to fail instantly if there are no PDP servers. The option works only if gRPC streams are
-  greater than 0. **TODO: MISSING FROM SYNTAX**
+  greater than 0.
 
 * `log` enables logging of the PDP request and response
 
