@@ -98,6 +98,7 @@ func (p *ThemisPlugin) ServeDNS(ctx context.Context, w dns.ResponseWriter, r *dn
 	return plugin.NextOrFailure(p.Name(), p.next, ctx, w, r)
 }
 
-func (p *ThemisPlugin) GetEngine(name string) policy.Engine {
+// Engine implements the Engineer interface
+func (p *ThemisPlugin) Engine(name string) policy.Engine {
 	return p.engines[name]
 }
