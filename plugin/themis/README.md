@@ -16,7 +16,6 @@ themis ENGINE-NAME {
     connection_timeout
     transfer ATTR [ATTR...]
     dnstap
-    passthrough
     connection_timeout
     log
     max_request_size [[auto] SIZE]
@@ -50,9 +49,6 @@ themis ENGINE-NAME {
 
 * `dnstap` defines attributes to be included in the extra field of DNStap message if received
   from the PDP.
-
-* `passthrough` defines set of domain name suffixes that will bypass policy validation. 
-  Each suffix should have dot at the end.
 
 * `connection_timeout` sets the timeout for query validation when no PDP servers are available.
   A negative value or `no` means wait forever, the default behavior. A timeout of `0` causes

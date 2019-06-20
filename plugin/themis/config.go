@@ -101,7 +101,7 @@ func (conf *config) parseOption(c *caddy.Controller) error {
 		return conf.parseCache(c)
 	}
 
-	return errInvalidOption
+	return errInvalidOption // TODO: anonymous error is lazy. Add invalid option name to error.
 }
 
 // Usage: pdp policy.[yaml|json] content1 content2...
