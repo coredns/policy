@@ -9,7 +9,7 @@ import (
 	"github.com/coredns/policy/plugin/firewall/policy"
 	"github.com/coredns/policy/plugin/firewall/rule"
 
-	"github.com/mholt/caddy"
+	"github.com/caddyserver/caddy"
 )
 
 func init() {

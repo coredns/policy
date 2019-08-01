@@ -6,8 +6,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/mholt/caddy"
-	"github.com/mholt/caddy/caddyfile"
+	"github.com/caddyserver/caddy"
+	"github.com/caddyserver/caddy/caddyfile"
 )
 
 func TestThemisConfigParse(t *testing.T) {

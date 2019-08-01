@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/mholt/caddy"
+	"github.com/caddyserver/caddy"
 )
 
 var errInvalidOption = errors.New("invalid themis plugin option")
