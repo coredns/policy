@@ -122,6 +122,11 @@ func NewMapping(emptyValue string) *Mapping {
 	return &Mapping{replacements, emptyValue}
 }
 
+func (m *Mapping) ValidField(name string) (bool) {
+	_, ok := m.replacements[name]
+	return ok
+}
+
 // Value extract the data that is mapped to this name and return the corresponding value as a string
 // if that value is empty then the defaultValue is returned
 // Second parameter is a boolean that inform if the name itself is supported in the mapping
