@@ -84,6 +84,10 @@ Corefile, and reference the plugin as an action of a firewall rule.  See the "Us
 
 When authoring a new policy engine plugin, the plugin must implement the `Engineer` interface defined in firewall/policy.
 
+This reposiory includes two Policy Engine Plugins:
+* *themis* - enables Infoblox's Themis policy engine yo be used as CoreDNS firewall policy engine
+* *opa* - enables OPA to be used as a CoreDNS firewall policy engine.
+
 ## External Plugin
 
 *Firewall* and other associated policy plugins in this repository are *external* plugins, which means it they are not included in CoreDNS releases.
