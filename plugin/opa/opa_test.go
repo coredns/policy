@@ -113,4 +113,8 @@ func TestBuildReplyData(t *testing.T) {
 	if data["rcode"] != "NOERROR" {
 		t.Errorf("expected rcode == 'NOERROR'. Got '%v'", data["rcode"])
 	}
+
+	if data["response_ip"] != "1.2.3.4" {
+		t.Errorf("expected response_ip == '1.2.3.4'. Got '%v'", data["response_ip"])
+	}
 }
