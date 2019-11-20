@@ -8,10 +8,10 @@ import (
 	"testing"
 
 	"github.com/caddyserver/caddy"
-	"github.com/coredns/coredns/plugin/pkg/dnstest"
 	"github.com/coredns/coredns/plugin/test"
 	"github.com/coredns/coredns/request"
 	"github.com/coredns/policy/plugin/firewall/policy"
+	"github.com/coredns/policy/plugin/pkg/response"
 	"github.com/coredns/policy/plugin/pkg/rqdata"
 	"github.com/miekg/dns"
 )
@@ -93,7 +93,7 @@ func TestBuildReplyData(t *testing.T) {
 	m.Rcode = dns.RcodeSuccess
 	m.Answer = []dns.RR{test.A("example.org.  5  IN  A  1.2.3.4")}
 
-	w := &dnstest.Recorder{Rcode: 0,  Msg: m}
+	w := &response.Reader{Msg: m}
 	state := request.Request{W: w, Req: r}
 
 	e := newEngine(rqdata.NewMapping(""))

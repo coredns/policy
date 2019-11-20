@@ -4,16 +4,16 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/coredns/coredns/plugin/pkg/dnstest"
 	"github.com/coredns/coredns/plugin/test"
 	"github.com/coredns/coredns/request"
+	"github.com/coredns/policy/plugin/pkg/response"
 
 	"github.com/miekg/dns"
 )
 
 func buildExtractorOnSimpleMsg(mapping *Mapping) *Extractor {
 
-	w := dnstest.NewRecorder(&test.ResponseWriter{})
+	w := response.NewReader(&test.ResponseWriter{})
 
 	r := new(dns.Msg)
 	r.SetQuestion("example.org.", dns.TypeHINFO)
