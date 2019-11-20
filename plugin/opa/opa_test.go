@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/caddyserver/caddy"
+	"github.com/coredns/coredns/plugin/pkg/dnstest"
 	"github.com/coredns/coredns/plugin/test"
 	"github.com/coredns/coredns/request"
 	"github.com/coredns/policy/plugin/firewall/policy"
@@ -64,7 +65,7 @@ func TestEvaluate(t *testing.T) {
 func TestBuildQueryData(t *testing.T) {
 	w := &test.ResponseWriter{}
 	r := new(dns.Msg)
-	r.SetQuestion("example.org.", dns.TypeHINFO)
+	r.SetQuestion("example.org.", dns.TypeA)
 	state := request.Request{W: w, Req: r}
 
 	e := newEngine(rqdata.NewMapping(""))
@@ -81,5 +82,34 @@ func TestBuildQueryData(t *testing.T) {
 	}
 	if data["name"] != "example.org." {
 		t.Errorf("expected name == 'example.org.'. Got '%v'", data["name"])
+	}
+}
+
+func TestBuildReplyData(t *testing.T) {
+	r := new(dns.Msg)
+	r.SetQuestion("example.org.", dns.TypeA)
+	m := new(dns.Msg)
+	m.SetReply(r)
+	m.Rcode = dns.RcodeSuccess
+	m.Answer = []dns.RR{test.A("example.org.  5  IN  A  1.2.3.4")}
+
+	w := &dnstest.Recorder{Rcode: 0,  Msg: m}
+	state := request.Request{W: w, Req: r}
+
+	e := newEngine(rqdata.NewMapping(""))
+	ctx := context.TODO()
+
+	indata := input{"client_ip": "10.240.0.1", "name": "test.data.exists."}
+	d, err := e.BuildReplyData(ctx, state, indata)
+	if err != nil {
+		t.Error(err)
+	}
+	data := d.(input)
+
+	if data["name"] != "test.data.exists." {
+		t.Errorf("expected name == 'test.data.exists.'. Got '%v'", data["name"])
+	}
+	if data["rcode"] != "NOERROR" {
+		t.Errorf("expected rcode == 'NOERROR'. Got '%v'", data["rcode"])
 	}
 }

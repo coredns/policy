@@ -58,7 +58,6 @@ func (p *ThemisEngine) BuildQueryData(ctx context.Context, state request.Request
 
 func (p *ThemisEngine) BuildReplyData(ctx context.Context, state request.Request, queryData interface{}) (interface{}, error) {
 	ah := queryData.(*attrHolder)
-	ah.prepareResponseFromContext(ctx, rqdata.NewExtractor(state, p.mapping))
 	return ah, nil
 }
 
