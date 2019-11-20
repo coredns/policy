@@ -40,7 +40,7 @@ func newOpa() *opa {
 func newEngine(m *rqdata.Mapping) *engine {
 	return &engine{
 		mapping: m,
-		fields:  []string{"client_ip", "name"},
+		fields:  []string{"client_ip", "name", "rcode", "response_ip"},
 	}
 }
 

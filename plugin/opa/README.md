@@ -27,7 +27,7 @@ opa ENGINE-NAME {
   *firewall* plugin expresions: *metadata* from other plugins, and data
   from the request/response ("type", "name", "proto", "client_ip", etc).
   See the *firewall* README for a list. If this option is omitted, the
-  following fields are sent: "client_ip", "name", "rcode"
+  following fields are sent: "client_ip", "name", "rcode", "response_ip"
 
 
 ## Firewall Policy Engine

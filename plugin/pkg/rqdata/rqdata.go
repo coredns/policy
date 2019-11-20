@@ -1,10 +1,12 @@
 package rqdata
 
 import (
+	"net"
 	"strconv"
 	"strings"
 
 	"github.com/coredns/coredns/request"
+	"github.com/coredns/policy/plugin/pkg/response"
 
 	"github.com/miekg/dns"
 )
@@ -55,6 +57,33 @@ func NewMapping(emptyValue string) *Mapping {
 		"port": func(state request.Request) string {
 			return addrToRFC3986(state.Port())
 		},
+		"rcode": func(state request.Request) string {
+			rcode := ""
+			rr, ok := state.W.(*response.Reader)
+			if ok && rr.Msg != nil {
+				rcode = dns.RcodeToString[rr.Msg.Rcode]
+				if rcode == "" {
+					rcode = strconv.Itoa(rr.Msg.Rcode)
+				}
+			}
+			return rcode
+		},
+		"rsize": func(state request.Request) string {
+			rsize := ""
+			rr, ok := state.W.(*response.Reader)
+			if ok && rr.Msg != nil {
+				rsize = strconv.Itoa(rr.Msg.Len())
+			}
+			return rsize
+		},
+		">rflags": func(state request.Request) string {
+			flags := ""
+			rr, ok := state.W.(*response.Reader)
+			if ok && rr.Msg != nil {
+				flags = flagsToString(rr.Msg.MsgHdr)
+			}
+			return flags
+		},
 		">id": func(state request.Request) string {
 			return strconv.Itoa(int(state.Req.Id))
 		},
@@ -73,11 +102,21 @@ func NewMapping(emptyValue string) *Mapping {
 		"server_port": func(state request.Request) string {
 			return addrToRFC3986(state.LocalPort())
 		},
+		"response_ip": func(state request.Request) string {
+			rr, ok := state.W.(*response.Reader)
+			if ok && rr.Msg != nil {
+				ip := respIP(rr.Msg)
+				if ip != nil {
+					return addrToRFC3986(ip.String())
+				}
+			}
+			return ""
+		},
 	}
 	return &Mapping{replacements, emptyValue}
 }
 
-func (m *Mapping) ValidField(name string) (bool) {
+func (m *Mapping) ValidField(name string) bool {
 	_, ok := m.replacements[name]
 	return ok
 }
@@ -152,4 +191,28 @@ func addrToRFC3986(addr string) string {
 		return "[" + addr + "]"
 	}
 	return addr
+}
+
+// respIP return the first A or AAAA records found in the Answer of the DNS msg
+func respIP(r *dns.Msg) net.IP {
+	if r == nil {
+		return nil
+	}
+
+	var ip net.IP
+	for _, rr := range r.Answer {
+		switch rr := rr.(type) {
+		case *dns.A:
+			ip = rr.A
+
+		case *dns.AAAA:
+			ip = rr.AAAA
+		}
+		// If there are several responses, currently
+		// only return the first one and break.
+		if ip != nil {
+			break
+		}
+	}
+	return ip
 }

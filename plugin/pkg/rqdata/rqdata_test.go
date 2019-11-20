@@ -23,10 +23,26 @@ func buildExtractorOnSimpleMsg(mapping *Mapping) *Extractor {
 	return &Extractor{state, mapping}
 }
 
+func buildExtractorOnRepliedMsg(mapping *Mapping) *Extractor {
+	w := response.NewReader(&test.ResponseWriter{})
+
+	r := new(dns.Msg)
+	r.SetQuestion("example.org.", dns.TypeA)
+
+	ret := new(dns.Msg)
+	ret.SetReply(r)
+	ret.Answer = append(ret.Answer, test.A("example.org. IN A 127.0.0.1"))
+	w.WriteMsg(ret)
+	state := request.Request{Req: r, W: w}
+
+	return &Extractor{state, mapping}
+}
+
 func TestNewRequestData(t *testing.T) {
 
 	mapping := NewMapping("")
 	extractFromQuery := buildExtractorOnSimpleMsg(mapping)
+	extractFromReply := buildExtractorOnRepliedMsg(mapping)
 	tests := []struct {
 		extractor *Extractor
 		name      string
@@ -38,6 +54,8 @@ func TestNewRequestData(t *testing.T) {
 		{extractFromQuery, "name", "example.org.", "", false},
 		{extractFromQuery, "size", "29", "", false},
 		{extractFromQuery, "invalid", "", "", true},
+		{extractFromReply, "response_ip", "127.0.0.1", "", false},
+		{extractFromReply, "rcode", "NOERROR", "", false},
 	}
 
 	for i, tst := range tests {

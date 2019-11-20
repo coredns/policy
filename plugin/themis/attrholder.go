@@ -184,7 +184,6 @@ func (ah *attrHolder) addDnRes(r *pdp.Response, custAttrs map[string]custAttr) {
 	ah.dnRes = r.Obligations[:oCount]
 }
 
-
 func (ah *attrHolder) putCustomAttr(attr pdp.AttributeAssignment, f custAttr) {
 	if f.isEdns() {
 		id := attr.GetID()
@@ -204,6 +203,16 @@ func (ah *attrHolder) putCustomAttr(attr pdp.AttributeAssignment, f custAttr) {
 
 	if f.isDnstap() {
 		ah.dnstap = append(ah.dnstap, attr)
+	}
+}
+
+func (ah *attrHolder) prepareResponseFromContext(ctx context.Context, xtr *rq.Extractor) {
+	ipResp, _ := xtr.Value("response_ip")
+	if ipResp != "" {
+		ip := net.ParseIP(ipResp)
+		if ip != nil {
+			ah.addIPReq(ip)
+		}
 	}
 }
 
