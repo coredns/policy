@@ -207,16 +207,6 @@ func (ah *attrHolder) putCustomAttr(attr pdp.AttributeAssignment, f custAttr) {
 	}
 }
 
-func (ah *attrHolder) prepareResponseFromContext(ctx context.Context, xtr *rq.Extractor) {
-	ipResp, _ := xtr.Value("response_ip")
-	if ipResp != "" {
-		ip := net.ParseIP(ipResp)
-		if ip != nil {
-			ah.addIPReq(ip)
-		}
-	}
-}
-
 func (ah *attrHolder) addIPReq(ip net.IP) {
 	ah.ipReq = append(
 		[]pdp.AttributeAssignment{

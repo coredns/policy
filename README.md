@@ -68,7 +68,6 @@ Available actions:
   * `>opcode`: query OPCODE
   * `server_ip`: server's IP address, for IPv6 addresses these are enclosed in brackets: `[::1]`
   * `server_port` : client's port
-  * `response_ip` : the IP returned in the first A or AAAA record of the Answer section
 
 * **POLICY-PLUGIN** : is the name of another plugin that implements a firewall policy engine. 
   **ENGINE-NAME** is the name of an engine defined in your Corefile. Requests/responses will be evaluated by

@@ -1,7 +1,6 @@
 package rqdata
 
 import (
-	"net"
 	"strconv"
 	"strings"
 	"time"
@@ -111,13 +110,6 @@ func NewMapping(emptyValue string) *Mapping {
 		"server_port": func(state request.Request) string {
 			return addrToRFC3986(state.LocalPort())
 		},
-		"response_ip": func(state request.Request) string {
-			ip := respIP(state.Req)
-			if ip != nil {
-				return addrToRFC3986(ip.String())
-			}
-			return ""
-		},
 	}
 	return &Mapping{replacements, emptyValue}
 }
@@ -197,28 +189,4 @@ func addrToRFC3986(addr string) string {
 		return "[" + addr + "]"
 	}
 	return addr
-}
-
-// respIP return the first A or AAAA records found in the Answer of the DNS msg
-func respIP(r *dns.Msg) net.IP {
-	if r == nil {
-		return nil
-	}
-
-	var ip net.IP
-	for _, rr := range r.Answer {
-		switch rr := rr.(type) {
-		case *dns.A:
-			ip = rr.A
-
-		case *dns.AAAA:
-			ip = rr.AAAA
-		}
-		// If there are several responses, currently
-		// only return the first one and break.
-		if ip != nil {
-			break
-		}
-	}
-	return ip
 }
