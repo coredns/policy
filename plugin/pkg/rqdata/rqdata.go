@@ -64,7 +64,7 @@ func NewMapping(emptyValue string) *Mapping {
 			if ok {
 				rcode = dns.RcodeToString[rr.Rcode]
 			}
-			if rcode == "" {
+			if rr != nil && rcode == "" {
 				rcode = strconv.Itoa(rr.Rcode)
 			}
 			return rcode
