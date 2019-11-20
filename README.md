@@ -57,12 +57,17 @@ Available actions:
   * `client_ip`: client's IP address, for IPv6 addresses these are enclosed in brackets: `[::1]`
   * `size`: request size in bytes
   * `port`: client's port
+  * `rcode`: response CODE (NOERROR, NXDOMAIN, SERVFAIL, ...)
+  * `rsize`: raw (uncompressed), response size (a client may receive a smaller response)
+  * `>rflags`: response flags, each set flag will be displayed, e.g. "aa, tc". This includes the qr
+    bit as well
   * `>bufsize`: the EDNS0 buffer size advertised in the query
   * `>do`: is the EDNS0 DO (DNSSEC OK) bit set in the query
   * `>id`: query ID
   * `>opcode`: query OPCODE
   * `server_ip`: server's IP address, for IPv6 addresses these are enclosed in brackets: `[::1]`
   * `server_port` : client's port
+  * `response_ip` : the IP returned in the first A or AAAA record of the Answer section
 
 * **POLICY-PLUGIN** : is the name of another plugin that implements a firewall policy engine. 
   **ENGINE-NAME** is the name of an engine defined in your Corefile. Requests/responses will be evaluated by

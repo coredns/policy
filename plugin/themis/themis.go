@@ -32,7 +32,7 @@ type ThemisEngine struct {
 	attrGauges      *AttrGauge
 	connAttempts    map[string]*uint32
 	unkConnAttempts *uint32
-	mapping *rqdata.Mapping
+	mapping         *rqdata.Mapping
 	wg              sync.WaitGroup
 }
 
@@ -47,7 +47,7 @@ func newThemisEngine() *ThemisEngine {
 		},
 		connAttempts:    make(map[string]*uint32),
 		unkConnAttempts: new(uint32),
-		mapping:rqdata.NewMapping(""),
+		mapping:         rqdata.NewMapping(""),
 	}
 }
 
@@ -58,6 +58,7 @@ func (p *ThemisEngine) BuildQueryData(ctx context.Context, state request.Request
 
 func (p *ThemisEngine) BuildReplyData(ctx context.Context, state request.Request, queryData interface{}) (interface{}, error) {
 	ah := queryData.(*attrHolder)
+	ah.prepareResponseFromContext(ctx, rqdata.NewExtractor(state, p.mapping))
 	return ah, nil
 }
 

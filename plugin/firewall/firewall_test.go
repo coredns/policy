@@ -5,9 +5,9 @@ import (
 	"testing"
 
 	"github.com/coredns/coredns/plugin"
-	"github.com/coredns/coredns/plugin/pkg/dnstest"
 	"github.com/coredns/coredns/plugin/test"
 	"github.com/coredns/policy/plugin/firewall/policy"
+	"github.com/coredns/policy/plugin/pkg/response"
 	"github.com/miekg/dns"
 )
 
@@ -60,7 +60,7 @@ func TestFirewallResolution(t *testing.T) {
 		req := new(dns.Msg)
 		req.SetQuestion("example.com", dns.TypeA)
 
-		rec := dnstest.NewRecorder(&test.ResponseWriter{})
+		rec := response.NewReader(&test.ResponseWriter{})
 		rcode, err := fw.ServeDNS(ctx, rec, req)
 		if err != nil {
 			t.Fatalf("Test %d: Expected no error, but got %s", i, err)
@@ -72,8 +72,8 @@ func TestFirewallResolution(t *testing.T) {
 			t.Errorf("Test %d: Expected value %s as return code, but got %s", i, dns.RcodeToString[tc.resultCode], dns.RcodeToString[rcode])
 		}
 
-		if rec.Rcode != tc.msgCode {
-			t.Errorf("Test %d: Expected value %s as DNS reply code, but got %s", i, dns.RcodeToString[tc.msgCode], dns.RcodeToString[rec.Rcode])
+		if rec.Msg != nil && rec.Msg.Rcode != tc.msgCode {
+			t.Errorf("Test %d: Expected value %s as DNS reply code, but got %s", i, dns.RcodeToString[tc.msgCode], dns.RcodeToString[rec.Msg.Rcode])
 		}
 
 		if (rec.Msg == nil) != tc.msgNil {

@@ -7,11 +7,11 @@ import (
 	"errors"
 
 	"github.com/coredns/coredns/plugin"
-	"github.com/coredns/policy/plugin/firewall/policy"
-	"github.com/coredns/policy/plugin/firewall/rule"
-	"github.com/coredns/coredns/plugin/pkg/dnstest"
 	"github.com/coredns/coredns/plugin/pkg/nonwriter"
 	"github.com/coredns/coredns/request"
+	"github.com/coredns/policy/plugin/firewall/policy"
+	"github.com/coredns/policy/plugin/firewall/rule"
+	"github.com/coredns/policy/plugin/pkg/response"
 
 	"github.com/miekg/dns"
 )
@@ -70,11 +70,11 @@ func (p *firewall) ServeDNS(ctx context.Context, w dns.ResponseWriter, r *dns.Ms
 		// if Allow : ask next plugin to resolve the DNS query
 		// temp writer: hold the DNS response until evaluation of the Reply Rulelist
 		writer := nonwriter.New(w)
-		// RequestDataExtractor requires a Recorder to be able to evaluate the information on the DNS response
-		recorder := dnstest.NewRecorder(writer)
+		// RequestDataExtractor requires a response.Reader to be able to evaluate the information on the DNS response
+		reader := response.NewReader(writer)
 
 		// ask other plugins to resolve
-		_, err := plugin.NextOrFailure(p.Name(), p.next, ctx, recorder, r)
+		_, err := plugin.NextOrFailure(p.Name(), p.next, ctx, reader, r)
 		if err != nil {
 			m := new(dns.Msg)
 			m = m.SetRcode(r, dns.RcodeServerFailure)
@@ -83,7 +83,7 @@ func (p *firewall) ServeDNS(ctx context.Context, w dns.ResponseWriter, r *dns.Ms
 		}
 		respMsg = writer.Msg
 
-		stateReply := request.Request{W: recorder, Req: respMsg}
+		stateReply := request.Request{W: reader, Req: respMsg}
 
 		// whatever the response, send to the Reply RuleList for action
 		action, err = p.reply.Evaluate(ctx, stateReply, queryData, p.engines)

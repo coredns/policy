@@ -5,9 +5,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/coredns/coredns/plugin/pkg/dnstest"
 	tst "github.com/coredns/coredns/plugin/test"
 	"github.com/coredns/coredns/request"
+	"github.com/coredns/policy/plugin/pkg/response"
 	"github.com/coredns/policy/plugin/pkg/rqdata"
 
 	"github.com/miekg/dns"
@@ -104,7 +104,7 @@ func TestRuleEvaluate(t *testing.T) {
 		r := new(dns.Msg)
 		r.SetQuestion("example.org.", dns.TypeHINFO)
 		r.MsgHdr.AuthenticatedData = true
-		w := dnstest.NewRecorder(&tst.ResponseWriter{})
+		w := response.NewReader(&tst.ResponseWriter{})
 		state := request.Request{Req: r, W: w}
 
 		data, err := engine.BuildQueryData(ctx, state)
