@@ -1,13 +1,18 @@
 package opa
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 
 	"github.com/caddyserver/caddy"
+	"github.com/coredns/coredns/plugin/test"
+	"github.com/coredns/coredns/request"
 	"github.com/coredns/policy/plugin/firewall/policy"
+	"github.com/coredns/policy/plugin/pkg/rqdata"
+	"github.com/miekg/dns"
 )
 
 func TestEvaluate(t *testing.T) {
@@ -35,7 +40,7 @@ func TestEvaluate(t *testing.T) {
 
 	o, err := parse(caddy.NewTestController("dns",
 		`opa myengine {
-                 endpoint `+ apiStub.URL +`
+                 endpoint `+apiStub.URL+`
                }`,
 	))
 
@@ -53,5 +58,28 @@ func TestEvaluate(t *testing.T) {
 
 	if result != policy.TypeAllow {
 		t.Errorf("Expected %d, got %d.", policy.TypeAllow, result)
+	}
+}
+
+func TestBuildQueryData(t *testing.T) {
+	w := &test.ResponseWriter{}
+	r := new(dns.Msg)
+	r.SetQuestion("example.org.", dns.TypeHINFO)
+	state := request.Request{W: w, Req: r}
+
+	e := newEngine(rqdata.NewMapping(""))
+	ctx := context.TODO()
+
+	d, err := e.BuildQueryData(ctx, state)
+	if err != nil {
+		t.Error(err)
+	}
+	data := d.(input)
+
+	if data["client_ip"] != "10.240.0.1" {
+		t.Errorf("expected client_ip == '10.240.0.1'. Got '%v'", data["client_ip"])
+	}
+	if data["name"] != "example.org." {
+		t.Errorf("expected name == 'example.org.'. Got '%v'", data["name"])
 	}
 }
