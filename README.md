@@ -57,11 +57,6 @@ Available actions:
   * `client_ip`: client's IP address, for IPv6 addresses these are enclosed in brackets: `[::1]`
   * `size`: request size in bytes
   * `port`: client's port
-  * `duration`: response duration
-  * `rcode`: response CODE (NOERROR, NXDOMAIN, SERVFAIL, ...)
-  * `rsize`: raw (uncompressed), response size (a client may receive a smaller response)
-  * `>rflags`: response flags, each set flag will be displayed, e.g. "aa, tc". This includes the qr
-    bit as well
   * `>bufsize`: the EDNS0 buffer size advertised in the query
   * `>do`: is the EDNS0 DO (DNSSEC OK) bit set in the query
   * `>id`: query ID

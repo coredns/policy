@@ -3,9 +3,7 @@ package rqdata
 import (
 	"strconv"
 	"strings"
-	"time"
 
-	"github.com/coredns/coredns/plugin/pkg/dnstest"
 	"github.com/coredns/coredns/request"
 
 	"github.com/miekg/dns"
@@ -56,41 +54,6 @@ func NewMapping(emptyValue string) *Mapping {
 		},
 		"port": func(state request.Request) string {
 			return addrToRFC3986(state.Port())
-		},
-		"rcode": func(state request.Request) string {
-			rcode := ""
-			rr, ok := state.W.(*dnstest.Recorder)
-			if ok {
-				rcode = dns.RcodeToString[rr.Rcode]
-			}
-			if rr != nil && rcode == "" {
-				rcode = strconv.Itoa(rr.Rcode)
-			}
-			return rcode
-		},
-		"rsize": func(state request.Request) string {
-			rsize := ""
-			rr, ok := state.W.(*dnstest.Recorder)
-			if ok {
-				rsize = strconv.Itoa(rr.Len)
-			}
-			return rsize
-		},
-		"duration": func(state request.Request) string {
-			duration := ""
-			rr, ok := state.W.(*dnstest.Recorder)
-			if ok {
-				duration = strconv.FormatFloat(time.Since(rr.Start).Seconds(), 'f', -1, 64) + "s"
-			}
-			return duration
-		},
-		">rflags": func(state request.Request) string {
-			flags := ""
-			rr, ok := state.W.(*dnstest.Recorder)
-			if ok && rr.Msg != nil {
-				flags = flagsToString(rr.Msg.MsgHdr)
-			}
-			return flags
 		},
 		">id": func(state request.Request) string {
 			return strconv.Itoa(int(state.Req.Id))

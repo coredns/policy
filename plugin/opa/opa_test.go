@@ -109,7 +109,4 @@ func TestBuildReplyData(t *testing.T) {
 	if data["name"] != "test.data.exists." {
 		t.Errorf("expected name == 'test.data.exists.'. Got '%v'", data["name"])
 	}
-	if data["rcode"] != "NOERROR" {
-		t.Errorf("expected rcode == 'NOERROR'. Got '%v'", data["rcode"])
-	}
 }
