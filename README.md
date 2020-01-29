@@ -135,6 +135,7 @@ The firewall rules use those metadata to REFUSE any query without a group_id of 
 
 ~~~ corefile
 example.org {
+   metadata
    metadata_edns0 {
       group_id edns0 0xffed bytes
       client_id edns0 0xffee bytes
