@@ -143,7 +143,7 @@ example.org {
    firewall query {
       refuse [metadata_edns0/client_id] != 'ABCDEF'
       refuse [metadata_edns0/group_id] != '123456789'
-      block true
+      allow true
    }
 }
 ~~~
