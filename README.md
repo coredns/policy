@@ -148,6 +148,28 @@ example.org {
 }
 ~~~
 
+### Kubernetes Metadata Multi-Tenancy Policy
+This example shows how *firewall* could be useful in a Kubernetes multi-tenancy application. It uses the *kubernetes*
+plugin metadata to prevent Pods in certain namespaces from looking up Services in other namespaces.
+Specifically, if the requesting Pod is in a namespace beginning with 'tenant-', it permits only lookups to
+Services that are in the same namespace or in the 'default' namespace. Note here that `pods verified` is
+required in *kubernetes* plugin to enable the `[kubernetes/client-namespace]` metadata variable.
+
+~~~ corefile
+cluster.local {
+   metadata
+   kubernetes {
+      pods verified
+   }
+   firewall query {
+      allow [kubernetes/client-namespace] !~ '^tenant-'
+      allow [kubernetes/namespace] == [kubernetes/client-namespace]
+      allow [kubernetes/namespace] == 'default'
+      block true
+   }
+}
+~~~
+
 ### Using a Policy Engine Plugin
 
 The following example illustrates how the a policy engine plugin (*themis* in this example) can be used by the *firewall* plugin.
