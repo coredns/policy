@@ -174,7 +174,6 @@ cluster.local {
 ### Using a Policy Engine Plugin
 
 The following example illustrates how the a policy engine plugin (*themis* in this example) can be used by the *firewall* plugin.
-Note that the *themis* plugin options are not defined here, and are replaced by `...`.
 
 ~~~
 . {
@@ -183,7 +182,7 @@ Note that the *themis* plugin options are not defined here, and are replaced by 
   }
    
   themis myengine {
-    ...
+    
   }
 }
 ~~~
