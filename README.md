@@ -2,11 +2,11 @@
 
 ## Name
 
-*firewall* - enables filtering of query and response based on expressions.
+*firewall* - enables filtering of queries and responses based on expressions.
 
 ## Description
 
-The firewall plugin defines a list of rules that trigger workflow action on the DNS query or its response.
+The firewall plugin defines a list of rules that trigger a workflow action on a DNS query or its response.
 A rule list is an ordered set of rules that are evaluated in sequence.
 Rules can be an expression rule, or a policy engine rule. 
 An expression rule has two parts: an action and an expression. When the rule is evaluated,
@@ -29,9 +29,9 @@ firewall DIRECTION {
 
 * **ACTION** defines the workflow action to take if the **EXPRESSION** evaluates to `true`.
 Available actions:
-  - `allow` : continue the DNS resolution process (i.e. continue to the next plugin in the chain)
-  - `refuse` : interrupt the DNS resolution, reply with REFUSE code
-  - `block` : interrupt the DNS resolution, reply with NXDOMAIN code
+  - `allow` : continue the DNS resolution process (i.e., continue to the next plugin in the chain)
+  - `refuse` : interrupt the DNS resolution, reply with REFUSED response code
+  - `block` : interrupt the DNS resolution, reply with NXDOMAIN response code
   - `drop` : interrupt the DNS resolution, do not reply (client will time out)
 
   An action must be followed by an **EXPRESSION**, which defines the boolean expression for the rule.  Expression uses 
@@ -50,24 +50,24 @@ Available actions:
 
   The following names are supported for querying information in expressions
 
-  * `type`: type of the request (A, AAAA, TXT, ..)
-  * `name`: name of the request (the domain requested)
-  * `class`: class of the request (IN, CS, CH, ...)
+  * `type`: type of the request (A, AAAA, TXT, ...)
+  * `name`: name of the request (the domain name requested)
+  * `class`: class of the request (IN, CH, ...)
   * `proto`: protocol used (tcp or udp)
   * `client_ip`: client's IP address, for IPv6 addresses these are enclosed in brackets: `[::1]`
   * `size`: request size in bytes
   * `port`: client's port
   * `rcode`: response CODE (NOERROR, NXDOMAIN, SERVFAIL, ...)
   * `rsize`: raw (uncompressed), response size (a client may receive a smaller response)
-  * `>rflags`: response flags, each set flag will be displayed, e.g. "aa, tc". This includes the qr
+  * `>rflags`: response flags, each set flag will be displayed, e.g., "aa, tc". This includes the qr
     bit as well
   * `>bufsize`: the EDNS0 buffer size advertised in the query
-  * `>do`: is the EDNS0 DO (DNSSEC OK) bit set in the query
+  * `>do`: the EDNS0 DO (DNSSEC OK) bit set in the query
   * `>id`: query ID
   * `>opcode`: query OPCODE
-  * `server_ip`: server's IP address, for IPv6 addresses these are enclosed in brackets: `[::1]`
+  * `server_ip`: server's IP address; for IPv6 addresses these are enclosed in brackets: `[::1]`
   * `server_port` : client's port
-  * `response_ip` : the IP returned in the first A or AAAA record of the Answer section
+  * `response_ip` : the IP address returned in the first A or AAAA record of the Answer section
 
 * **POLICY-PLUGIN** : is the name of another plugin that implements a firewall policy engine. 
   **ENGINE-NAME** is the name of an engine defined in your Corefile. Requests/responses will be evaluated by
@@ -78,21 +78,21 @@ Available actions:
 In addition to using the built-in action/expression syntax, the _firewall_ plugin can use a policy engine plugin
 to evaluate policy.
 
-To use a policy engine plugin, you'll need to compile plugin into CoreDNS, the declare the plugin in in your
+To use a policy engine plugin, you'll need to compile the plugin into CoreDNS, then declare the plugin in your
 Corefile, and reference the plugin as an action of a firewall rule.  See the "Using a Policy Engine Plugin" example below.
 
 When authoring a new policy engine plugin, the plugin must implement the `Engineer` interface defined in firewall/policy.
 
-This reposiory includes two Policy Engine Plugins:
-* *themis* - enables Infoblox's Themis policy engine yo be used as CoreDNS firewall policy engine
+This repository includes two Policy Engine Plugins:
+* *themis* - enables Infoblox's Themis policy engine to be used as a CoreDNS firewall policy engine
 * *opa* - enables OPA to be used as a CoreDNS firewall policy engine.
 
 ## External Plugin
 
-*Firewall* and other associated policy plugins in this repository are *external* plugins, which means it they are not included in CoreDNS releases.
+*Firewall* and other associated policy plugins in this repository are *external* plugins, which means they are not included in CoreDNS releases.
 To use the plugins in this repository, you'll need to build a CoreDNS image with the plugins you want to add included in the plugin list. In a nutshell you'll need to:
-* Clone <https://github.com/coredns/coredns> release. e.g. ` git clone -b v1.6.9 --depth 1 https://github.com/coredns/coredns .`
-* Add this plugin to [plugin.cfg](https://github.com/coredns/coredns/blob/master/plugin.cfg) per instructions therein.  Order in this file is important, it dictates the order of plugin execution when processing a query.  The firewall plugin should execute before plugins that generate responses.
+* Clone <https://github.com/coredns/coredns> release, e.g., ` git clone -b v1.6.9 --depth 1 https://github.com/coredns/coredns .`
+* Add this plugin to [plugin.cfg](https://github.com/coredns/coredns/blob/master/plugin.cfg) per instructions therein.  Order in this file is important, as it dictates the order of plugin execution when processing a query.  The firewall plugin should execute before plugins that generate responses.
 * `make -f Makefile.release DOCKER=your-docker-repo release`
 * `make -f Makefile.release DOCKER=your-docker-repo docker`
 * `make -f Makefile.release DOCKER=your-docker-repo docker-push`
@@ -100,7 +100,7 @@ To use the plugins in this repository, you'll need to build a CoreDNS image with
 ## Examples
 
 ### Client IP ACL
-This example shows how to use *firewall* to create a basic client IP based ACL. Here `10.120.1.11` is expressly REFUSED.
+This example shows how to use *firewall* to create a basic client IP address-based ACL. Here `10.120.1.11` is expressly REFUSED.
 Other clients in `10.120.0.0/24` and `10.120.1.0/24` are allowed.  All other clients are not responded to.
 
 ~~~ corefile
@@ -149,12 +149,12 @@ example.org {
 ~~~
 
 ### Kubernetes Metadata Multi-Tenancy Policy
-This example shows how *firewall* could be useful in a Kubernetes based multi-tenancy application. It uses the *kubernetes*
+This example shows how *firewall* could be useful in a Kubernetes-based multi-tenancy application. It uses the *kubernetes*
 plugin metadata to prevent Pods in certain Namespaces from looking up Services in other Namespaces.
 Specifically, if the requesting Pod is in a Namespace beginning with 'tenant-', it permits only lookups to
 Services that are in the same Namespace or in the 'default' Namespace. Note here that `pods verified` is
-required in the *kubernetes* plugin to enable the `[kubernetes/client-namespace]` metadata variable.  Also note that
-this is at the DNS level only, and does not prevent network access between tenant Namespaces, e.g. if Service IPs are known.
+required in the *kubernetes* plugin to enable the use of the `[kubernetes/client-namespace]` metadata variable.  Also note that
+this is at the DNS level only, and does not prevent network access between tenant Namespaces, e.g., if Service IPs are known.
 
 ~~~ corefile
 cluster.local {
