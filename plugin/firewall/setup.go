@@ -4,12 +4,11 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/coredns/caddy"
 	"github.com/coredns/coredns/core/dnsserver"
 	"github.com/coredns/coredns/plugin"
 	"github.com/coredns/policy/plugin/firewall/policy"
 	"github.com/coredns/policy/plugin/firewall/rule"
-
-	"github.com/caddyserver/caddy"
 )
 
 func init() {
