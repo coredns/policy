@@ -6,7 +6,7 @@
 
 ## Description
 
-The firewall plugin defines a list of rules that trigger a workflow action on a DNS query or its response.
+The firewall plugin defines a list of rules that trigger a workflow action on a DNS query and its response.
 A rule list is an ordered set of rules that are evaluated in sequence.
 Rules can be an expression rule, or a policy engine rule. 
 An expression rule has two parts: an action and an expression. When the rule is evaluated,
@@ -27,7 +27,8 @@ firewall DIRECTION {
 
 * **DIRECTION** indicates if the _rule list_ will be applied to queries or responses. It can be `query` or `response`.
 
-* **ACTION** defines the workflow action to take if the **EXPRESSION** evaluates to `true`.
+* **ACTION** defines the workflow action to take if the **EXPRESSION** evaluates to `true`.  If no actions are defined
+for the `query` **DIRECTION**, the default action is to `block`.
 Available actions:
   - `allow` : continue the DNS resolution process (i.e., continue to the next plugin in the chain)
   - `refuse` : interrupt the DNS resolution, reply with REFUSED response code
@@ -125,6 +126,21 @@ NXDOMAIN all other queries.
       allow name =~ 'example.com'
       allow name =~ 'google.com' && (type == 'A' || type == 'AAAA')
       block true
+   }
+}
+~~~
+
+### Response Policy
+Allow all queries.
+but block all responses that contain an IP matching `10.120.1.*` in the first record of the Answer section.
+
+~~~ corefile
+. {
+   firewall query {
+      allow true
+   }
+   firewall response {
+      block response_ip  =~ '10\.120\.1\..*'
    }
 }
 ~~~
