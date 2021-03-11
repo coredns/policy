@@ -131,8 +131,8 @@ NXDOMAIN all other queries.
 ~~~
 
 ### Response Policy
-Allow all queries.
-but block all responses that contain an IP matching `10.120.1.*` in the first record of the Answer section.
+Allow all queries, but block all responses that contain an IP matching `10.120.1.*` in the first record
+of the Answer section.
 
 ~~~ corefile
 . {
