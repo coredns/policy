@@ -87,6 +87,7 @@ When authoring a new policy engine plugin, the plugin must implement the `Engine
 This repository includes two Policy Engine Plugins:
 * *themis* - enables Infoblox's Themis policy engine to be used as a CoreDNS firewall policy engine
 * *opa* - enables OPA to be used as a CoreDNS firewall policy engine.
+* *casbin* - enables Casbin to be used as a CoreDNS firewall policy engine.
 
 ## External Plugin
 
