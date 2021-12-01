@@ -35,44 +35,56 @@ Available actions:
   - `block` : interrupt the DNS resolution, reply with NXDOMAIN response code
   - `drop` : interrupt the DNS resolution, do not reply (client will time out)
 
-  An action must be followed by an **EXPRESSION**, which defines the boolean expression for the rule.  Expression uses 
-  a [c-like expression format](https://github.com/Knetic/govaluate/blob/master/MANUAL.md) where the variables are either
-  the `metadata` of CoreDNS or the fields of a DNS query/response.  Common operators apply.
-
-  Expression Examples:
-  * `client_ip == '10.0.0.20'`
-  * `type == 'AAAA'`
-  * `type IN ('AAAA', 'A', 'TXT')`
-  * `type IN ('AAAA', 'A') && name =~ 'google.com'`
-  * `[mac/address] =~ '.*:FF:.*'`
-
-  NOTE: because of the `/` separator included in a label of metadata, those labels must be enclosed in
-  brackets `[...]`.
-
-  The following names are supported for querying information in expressions
-
-  * `type`: type of the request (A, AAAA, TXT, ...)
-  * `name`: name of the request (the domain name requested)
-  * `class`: class of the request (IN, CH, ...)
-  * `proto`: protocol used (tcp or udp)
-  * `client_ip`: client's IP address, for IPv6 addresses these are enclosed in brackets: `[::1]`
-  * `size`: request size in bytes
-  * `port`: client's port
-  * `rcode`: response CODE (NOERROR, NXDOMAIN, SERVFAIL, ...)
-  * `rsize`: raw (uncompressed), response size (a client may receive a smaller response)
-  * `>rflags`: response flags, each set flag will be displayed, e.g., "aa, tc". This includes the qr
-    bit as well
-  * `>bufsize`: the EDNS0 buffer size advertised in the query
-  * `>do`: the EDNS0 DO (DNSSEC OK) bit set in the query
-  * `>id`: query ID
-  * `>opcode`: query OPCODE
-  * `server_ip`: server's IP address; for IPv6 addresses these are enclosed in brackets: `[::1]`
-  * `server_port` : client's port
-  * `response_ip` : the IP address returned in the first A or AAAA record of the Answer section
+  An action must be followed by an **EXPRESSION**, which defines the boolean expression for the rule.  See Expressions 
+  section below.
 
 * **POLICY-PLUGIN** : is the name of another plugin that implements a firewall policy engine. 
   **ENGINE-NAME** is the name of an engine defined in your Corefile. Requests/responses will be evaluated by
   that plugin policy engine to determine the action.
+
+## Expressions
+
+Expressions follow a [c-like expression format](https://github.com/Knetic/govaluate/blob/master/MANUAL.md) where the variables are either
+the `metadata` of CoreDNS or the fields of a DNS query/response.  Common operators apply.
+
+Expression Examples:
+* `client_ip == '10.0.0.20'`
+* `type == 'AAAA'`
+* `type IN ('AAAA', 'A', 'TXT')`
+* `type IN ('AAAA', 'A') && name =~ 'google.com'`
+* `[mac/address] =~ '.*:FF:.*'`
+
+NOTE: because of the `/` separator included in a label of metadata, those labels must be enclosed in
+brackets `[...]`.
+
+### Expression Variables
+
+The following variables are supported for querying information in expressions.  All values are strings (see `atoi` function
+below for arithmetic operations).
+
+* `type`: type of the request (A, AAAA, TXT, ...)
+* `name`: name of the request (the domain name requested)
+* `class`: class of the request (IN, CH, ...)
+* `proto`: protocol used (tcp or udp)
+* `client_ip`: client's IP address, for IPv6 addresses these are enclosed in brackets: `[::1]`
+* `size`: request size in bytes
+* `port`: client's port
+* `rcode`: response CODE (NOERROR, NXDOMAIN, SERVFAIL, ...)
+* `rsize`: raw (uncompressed), response size (a client may receive a smaller response)
+* `>rflags`: response flags, each set flag will be displayed, e.g., "aa, tc". This includes the qr
+  bit as well
+* `>bufsize`: the EDNS0 buffer size advertised in the query
+* `>do`: the EDNS0 DO (DNSSEC OK) bit set in the query
+* `>id`: query ID
+* `>opcode`: query OPCODE
+* `server_ip`: server's IP address; for IPv6 addresses these are enclosed in brackets: `[::1]`
+* `server_port` : client's port
+* `response_ip` : the IP address returned in the first A or AAAA record of the Answer section
+
+### Expression Functions
+
+* `atoi(string)`: convert a string to a numeric value.
+* `incidr(ip, cidr)`: returns true if `ip` is in the subnet defined by `cidr`.
 
 ## Policy Engine Plugins
 
