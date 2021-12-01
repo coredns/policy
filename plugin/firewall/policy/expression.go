@@ -3,6 +3,7 @@ package policy
 import (
 	"context"
 	"fmt"
+	"net"
 	"strconv"
 	"strings"
 
@@ -54,6 +55,7 @@ func (x *ExprEngine) BuildRule(args []string) (Rule, error) {
 	exp := args[1:]
 	e, err := expr.NewEvaluableExpressionWithFunctions(strings.Join(exp, " "), map[string]expr.ExpressionFunction{
 		"atoi": atoi,
+		"incidr": incidr,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("cannot create a valid expression : %s", err)
@@ -84,6 +86,21 @@ func atoi(arguments ...interface{}) (interface{}, error) {
 		return nil, err
 	}
 	return float64(n), nil
+}
+
+func incidr(args ...interface{}) (interface{}, error) {
+	if len(args) != 2 {
+		return nil, fmt.Errorf("invalid number of arguments")
+	}
+	ip := net.ParseIP(args[0].(string))
+	if ip == nil {
+		return nil, fmt.Errorf("first argument is not an IP address")
+	}
+	_, cidr, err := net.ParseCIDR(args[1].(string))
+	if err != nil {
+		return nil, err
+	}
+	return cidr.Contains(ip), nil
 }
 
 func toBoolean(v interface{}) (bool, error) {
