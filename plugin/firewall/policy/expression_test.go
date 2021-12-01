@@ -9,6 +9,7 @@ import (
 
 	tst "github.com/coredns/coredns/plugin/test"
 	"github.com/coredns/coredns/request"
+
 	"github.com/coredns/policy/plugin/pkg/response"
 	"github.com/coredns/policy/plugin/pkg/rqdata"
 
@@ -92,6 +93,7 @@ func TestRuleEvaluate(t *testing.T) {
 		{"name =~ 'org'", true, false},
 		{"atoi('4') == 4.0", true, false},
 		{"incidr('1.2.3.4','1.2.3.0/24')", true, false},
+		{"incidr('1:2:3:4::1','1:2:3:4::/32')", true, false},
 	}
 	for i, test := range tests {
 
@@ -183,6 +185,14 @@ func TestInCidr(t *testing.T) {
 		},
 		{
 			args:     []interface{}{"1.2.3.4", "5.6.7.0/24"},
+			expected: false,
+		},
+		{
+			args:     []interface{}{"1:2:3:4::1", "1:2:3:4::/32"},
+			expected: true,
+		},
+		{
+			args:     []interface{}{"1:2:3:4::1", "5:6:7:8::/32"},
 			expected: false,
 		},
 		{
