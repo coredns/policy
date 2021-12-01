@@ -3,6 +3,7 @@ package policy
 import (
 	"context"
 	"fmt"
+	"strconv"
 	"strings"
 
 	"github.com/coredns/coredns/plugin/metadata"
@@ -51,7 +52,9 @@ func (x *ExprEngine) BuildReplyData(ctx context.Context, state request.Request, 
 func (x *ExprEngine) BuildRule(args []string) (Rule, error) {
 	keyword := args[0]
 	exp := args[1:]
-	e, err := expr.NewEvaluableExpression(strings.Join(exp, " "))
+	e, err := expr.NewEvaluableExpressionWithFunctions(strings.Join(exp, " "), map[string]expr.ExpressionFunction{
+		"atoi": atoi,
+	})
 	if err != nil {
 		return nil, fmt.Errorf("cannot create a valid expression : %s", err)
 	}
@@ -66,6 +69,21 @@ func (x *ExprEngine) BuildRule(args []string) (Rule, error) {
 		return nil, fmt.Errorf("invalid keyword %s for a policy rule", keyword)
 	}
 	return &ruleExpr{kind, x.actionIfErrorEvaluation, e}, nil
+}
+
+func atoi(arguments ...interface{}) (interface{}, error) {
+	if len(arguments) != 1 {
+		return nil, fmt.Errorf("atoi requires exactly one string argument")
+	}
+	s, ok := arguments[0].(string)
+	if !ok {
+		return nil, fmt.Errorf("atoi requires exactly one string argument")
+	}
+	n, err := strconv.Atoi(s)
+	if err != nil {
+		return nil, err
+	}
+	return float64(n), nil
 }
 
 func toBoolean(v interface{}) (bool, error) {

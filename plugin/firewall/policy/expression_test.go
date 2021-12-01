@@ -2,6 +2,8 @@ package policy
 
 import (
 	"context"
+	"fmt"
+	"reflect"
 	"strings"
 	"testing"
 
@@ -88,6 +90,7 @@ func TestRuleEvaluate(t *testing.T) {
 		{"type == 'HINFO'", true, false},
 		{"type == 'AAAA'", false, false},
 		{"name =~ 'org'", true, false},
+		{"atoi('4') == 4.0", true, false},
 	}
 	for i, test := range tests {
 
@@ -120,5 +123,49 @@ func TestRuleEvaluate(t *testing.T) {
 			t.Errorf("Test %d, expr : %v -  value return is not the one expected - expected : %v, got : %v", i, test.expression, test.value, (result == TypeAllow))
 		}
 
+	}
+}
+
+func TestAtoi(t *testing.T) {
+	tests := []struct {
+		args        []interface{}
+		expected    interface{}
+		expectedErr error
+	}{
+		{
+			args:     []interface{}{"42"},
+			expected: float64(42),
+		},
+		{
+			args:        []interface{}{"42", "100"},
+			expectedErr: fmt.Errorf("atoi requires exactly one string argument"),
+		},
+		{
+			args:        []interface{}{},
+			expectedErr: fmt.Errorf("atoi requires exactly one string argument"),
+		},
+		{
+			args:        []interface{}{42},
+			expectedErr: fmt.Errorf("atoi requires exactly one string argument"),
+		},
+		{
+			args:        []interface{}{"foo"},
+			expectedErr: fmt.Errorf("strconv.Atoi: parsing \"foo\": invalid syntax"),
+		},
+	}
+	for i, test := range tests {
+		v, err := atoi(test.args...)
+		if test.expectedErr != nil {
+			if err == nil {
+				t.Errorf("Test %d, args : %v - expected error - expected : %v, got : %v", i, test.args, test.expectedErr, nil)
+			} else if err.Error() != test.expectedErr.Error() {
+				t.Errorf("Test %d, args : %v - expected error - expected : %v, got : %v", i, test.args, test.expectedErr, err)
+			}
+			continue
+		}
+
+		if !reflect.DeepEqual(v, test.expected) {
+			t.Errorf("Test %d, args : %v -  value return is not the one expected - expected : %v, got : %v", i, test.args, test.expected, v)
+		}
 	}
 }
