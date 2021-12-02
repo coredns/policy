@@ -9,6 +9,7 @@ import (
 
 	tst "github.com/coredns/coredns/plugin/test"
 	"github.com/coredns/coredns/request"
+
 	"github.com/coredns/policy/plugin/pkg/response"
 	"github.com/coredns/policy/plugin/pkg/rqdata"
 
@@ -91,6 +92,8 @@ func TestRuleEvaluate(t *testing.T) {
 		{"type == 'AAAA'", false, false},
 		{"name =~ 'org'", true, false},
 		{"atoi('4') == 4.0", true, false},
+		{"incidr('1.2.3.4','1.2.3.0/24')", true, false},
+		{"incidr('1:2:3:4::1','1:2:3:4::/32')", true, false},
 	}
 	for i, test := range tests {
 
@@ -155,6 +158,54 @@ func TestAtoi(t *testing.T) {
 	}
 	for i, test := range tests {
 		v, err := atoi(test.args...)
+		if test.expectedErr != nil {
+			if err == nil {
+				t.Errorf("Test %d, args : %v - expected error - expected : %v, got : %v", i, test.args, test.expectedErr, nil)
+			} else if err.Error() != test.expectedErr.Error() {
+				t.Errorf("Test %d, args : %v - expected error - expected : %v, got : %v", i, test.args, test.expectedErr, err)
+			}
+			continue
+		}
+
+		if !reflect.DeepEqual(v, test.expected) {
+			t.Errorf("Test %d, args : %v -  value return is not the one expected - expected : %v, got : %v", i, test.args, test.expected, v)
+		}
+	}
+}
+
+func TestInCidr(t *testing.T) {
+	tests := []struct {
+		args        []interface{}
+		expected    interface{}
+		expectedErr error
+	}{
+		{
+			args:     []interface{}{"1.2.3.4", "1.2.3.0/24"},
+			expected: true,
+		},
+		{
+			args:     []interface{}{"1.2.3.4", "5.6.7.0/24"},
+			expected: false,
+		},
+		{
+			args:     []interface{}{"1:2:3:4::1", "1:2:3:4::/32"},
+			expected: true,
+		},
+		{
+			args:     []interface{}{"1:2:3:4::1", "5:6:7:8::/32"},
+			expected: false,
+		},
+		{
+			args:        []interface{}{"1.2.3.4"},
+			expectedErr: fmt.Errorf("invalid number of arguments"),
+		},
+		{
+			args:        []interface{}{"foo", "5.6.7.0/24"},
+			expectedErr: fmt.Errorf("first argument is not an IP address"),
+		},
+	}
+	for i, test := range tests {
+		v, err := incidr(test.args...)
 		if test.expectedErr != nil {
 			if err == nil {
 				t.Errorf("Test %d, args : %v - expected error - expected : %v, got : %v", i, test.args, test.expectedErr, nil)
