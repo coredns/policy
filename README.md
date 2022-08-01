@@ -85,6 +85,7 @@ below for arithmetic operations).
 
 * `atoi(string)`: convert a string to a numeric value.
 * `incidr(ip, cidr)`: returns true if `ip` is in the subnet defined by `cidr`.
+* `random()`: returns a random floating point number in the range [0.0, 1.0).
 
 ## Policy Engine Plugins
 

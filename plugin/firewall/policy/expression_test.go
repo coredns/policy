@@ -94,6 +94,9 @@ func TestRuleEvaluate(t *testing.T) {
 		{"atoi('4') == 4.0", true, false},
 		{"incidr('1.2.3.4','1.2.3.0/24')", true, false},
 		{"incidr('1:2:3:4::1','1:2:3:4::/32')", true, false},
+		{"random() < 1.0", true, false},
+		{"random() >= 0.0", true, false},
+		{"random('1') >= 0.0", true, true},
 	}
 	for i, test := range tests {
 
@@ -114,6 +117,10 @@ func TestRuleEvaluate(t *testing.T) {
 		state := request.Request{Req: r, W: w}
 
 		data, err := engine.BuildQueryData(ctx, state)
+		if err != nil {
+			t.Errorf("Test %d, expr : %s - unexpected error at build query data : %s", i, test.expression, err)
+			continue
+		}
 		result, err := rule.Evaluate(data)
 		if err != nil {
 			if !test.errorExec {

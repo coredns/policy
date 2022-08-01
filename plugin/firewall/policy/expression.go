@@ -3,6 +3,7 @@ package policy
 import (
 	"context"
 	"fmt"
+	"math/rand"
 	"net"
 	"strconv"
 	"strings"
@@ -54,8 +55,9 @@ func (x *ExprEngine) BuildRule(args []string) (Rule, error) {
 	keyword := args[0]
 	exp := args[1:]
 	e, err := expr.NewEvaluableExpressionWithFunctions(strings.Join(exp, " "), map[string]expr.ExpressionFunction{
-		"atoi": atoi,
+		"atoi":   atoi,
 		"incidr": incidr,
+		"random": random,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("cannot create a valid expression : %s", err)
@@ -71,6 +73,13 @@ func (x *ExprEngine) BuildRule(args []string) (Rule, error) {
 		return nil, fmt.Errorf("invalid keyword %s for a policy rule", keyword)
 	}
 	return &ruleExpr{kind, x.actionIfErrorEvaluation, e}, nil
+}
+
+func random(arguments ...interface{}) (interface{}, error) {
+	if len(arguments) != 0 {
+		return nil, fmt.Errorf("invalid number of arguments")
+	}
+	return rand.Float64(), nil
 }
 
 func atoi(arguments ...interface{}) (interface{}, error) {
