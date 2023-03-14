@@ -1,15 +1,19 @@
 package rqdata
 
 import (
+	"encoding/json"
 	"net"
 	"strconv"
 	"strings"
 
+	"github.com/coredns/coredns/plugin/pkg/log"
 	"github.com/coredns/coredns/request"
 	"github.com/coredns/policy/plugin/pkg/response"
 
 	"github.com/miekg/dns"
 )
+
+var logger = log.NewWithPlugin("rqdata")
 
 type requestFunc func(state request.Request) string
 
@@ -112,8 +116,32 @@ func NewMapping(emptyValue string) *Mapping {
 			}
 			return ""
 		},
+		"response_ips": responseIpsExtractor,
+		"response_ips_with_log": func(state request.Request) string {
+			result := responseIpsExtractor(state)
+			log.Infof("coredns::policy/firewall, Response IPs are: '%s'", result)
+			return result
+		},
 	}
 	return &Mapping{replacements, emptyValue}
+}
+
+func responseIpsExtractor(state request.Request) string {
+	rr, ok := state.W.(*response.Reader)
+	if ok && rr.Msg != nil {
+		ipsSlice := respIPs(rr.Msg)
+		var ipsStrSlice []string
+		for _, ip := range ipsSlice {
+			ipsStrSlice = append(ipsStrSlice, addrToRFC3986(ip.String()))
+		}
+		if len(ipsStrSlice) > 0 {
+			ips, err := json.Marshal(ipsStrSlice)
+			if err == nil {
+				return string(ips)
+			}
+		}
+	}
+	return ""
 }
 
 func (m *Mapping) ValidField(name string) bool {
@@ -215,4 +243,23 @@ func respIP(r *dns.Msg) net.IP {
 		}
 	}
 	return ip
+}
+
+// respIPs return all the A or AAAA records found in the Answer of the DNS msg
+func respIPs(r *dns.Msg) []net.IP {
+	if r == nil {
+		return nil
+	}
+
+	var ips []net.IP
+	for _, rr := range r.Answer {
+		switch rr := rr.(type) {
+		case *dns.A:
+			ips = append(ips, rr.A)
+
+		case *dns.AAAA:
+			ips = append(ips, rr.AAAA)
+		}
+	}
+	return ips
 }
