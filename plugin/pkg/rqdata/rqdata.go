@@ -116,10 +116,9 @@ func NewMapping(emptyValue string) *Mapping {
 			}
 			return ""
 		},
-		"response_ips": responseIpsExtractor,
-		"response_ips_with_log": func(state request.Request) string {
+		"response_ips": func(state request.Request) string {
 			result := responseIpsExtractor(state)
-			log.Infof("coredns::policy/firewall, Response IPs are: '%s'", result)
+			log.Debugf("coredns::policy/firewall, Response IPs are: '%s'", result)
 			return result
 		},
 	}

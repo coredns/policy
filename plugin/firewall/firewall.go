@@ -106,15 +106,15 @@ func (p *firewall) ServeDNS(ctx context.Context, w dns.ResponseWriter, r *dns.Ms
 		return dns.RcodeSuccess, nil
 	case policy.TypeBlock:
 		// One of the RuleList ended evaluation with typeBlock : return the initial request with corresponding rcode
-		log.Warning("coredns::policy/firewall, Action is Block")
+		log.Debug("coredns::policy/firewall, Action is Block")
 		status = dns.RcodeNameError
 	case policy.TypeRefuse:
 		// One of the RuleList ended evaluation with typeRefuse : return the initial request with corresponding rcode
-		log.Warning("coredns::policy/firewall, Action is Refuse")
+		log.Debug("coredns::policy/firewall, Action is Refuse")
 		status = dns.RcodeRefused
 	case policy.TypeDrop:
 		// One of the RuleList ended evaluation with typeDrop : simulate a drop
-		log.Warning("coredns::policy/firewall, Action is Drop")
+		log.Debug("coredns::policy/firewall, Action is Drop")
 		return dns.RcodeSuccess, nil
 	default:
 		// Any other action returned by RuleLists is considered an internal error
