@@ -80,6 +80,7 @@ below for arithmetic operations).
 * `server_ip`: server's IP address; for IPv6 addresses these are enclosed in brackets: `[::1]`
 * `server_port` : client's port
 * `response_ip` : the IP address returned in the first A or AAAA record of the Answer section
+* `response_ips` : array (represented as a JSON string) of the all the IP addresses returned in the A or AAAA records of the Answer section
 
 ### Expression Functions
 
